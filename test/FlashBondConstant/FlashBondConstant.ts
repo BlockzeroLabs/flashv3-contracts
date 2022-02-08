@@ -10,7 +10,7 @@ import BalanceTree from "../utils/balance-tree";
 
 const { deployContract } = hre.waffle;
 
-describe.only("FlashBondConstant Merkle Tree Tests", function() {
+describe("FlashBondConstant Merkle Tree Tests", function() {
 
   const multiplier = BigNumber.from(10).pow(BigNumber.from(18));
 
@@ -94,7 +94,7 @@ describe.only("FlashBondConstant Merkle Tree Tests", function() {
   })
 })
 
-describe.only("FlashBondConstant Tests", function () {
+describe("FlashBondConstant Tests", function () {
 
   const multiplier = BigNumber.from(10).pow(BigNumber.from(18));
   const bondReceiver = "0x5089722613C2cCEe071C39C59e9889641f435F15";
