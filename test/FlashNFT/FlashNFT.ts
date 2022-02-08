@@ -8,7 +8,7 @@ import { BigNumber, ContractReceipt } from "ethers";
 
 const { deployContract } = hre.waffle;
 
-describe.only("Flash NFT Token Tests", function() {
+describe("Flash NFT Token Tests", function() {
   let flashNFTContract: FlashNFT;
 
   before(async function() {
