@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./interfaces/IERC20C.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import "hardhat/console.sol"; //TODO: Remove
 
 //    ============================================================================
 //    Requirements
