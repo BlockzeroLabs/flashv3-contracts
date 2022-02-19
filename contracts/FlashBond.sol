@@ -5,19 +5,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./interfaces/IERC20C.sol";
 
-//    ============================================================================
-//    Requirements
-//    ============================================================================
-//    1. should mint FLASH according to the formula provided by Alex
-//      https://docs.google.com/spreadsheets/d/1eqtMfTvTOqP2K3EHm_NMoFJBy70vGDEMfOok0UZ15t8/edit#gid=602172985
-//
-//    2. contract can start being used from day 0
-//
-//    3. must allow owner to update where the bonded DAI goes
-//
-//    4. must allow slippage when bonding to ensure a minimum amount of FLASH is
-//    obtained.
-
 contract FlashBond is Ownable {
 
     using SafeMath for uint256;
