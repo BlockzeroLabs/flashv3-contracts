@@ -6,29 +6,6 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./interfaces/IERC20C.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-//    ============================================================================
-//    Requirements
-//    ============================================================================
-//    1. should mint and return 1 FLASH for every 0.017072258 DAI
-//    bonded.
-//
-//    2. must have a whitelist which is by default enabled. This whitelist when
-//    enabled will enforce allowance limits.
-//
-//    3. must have functionality to enforce allowance limits. The allowance limit
-//    specifies a specific address and the amount of DAI they are able to bond. If
-//    the user attempts to bond more DAI than the allowance, tx should fail.
-//
-//    4. must allow owner to specify a list of addresses and list of amounts to
-//    increase each addresses allowance as per item 3 (above).
-//
-//    5. contract should stop minting FLASH once the maximum FLASH amount of
-//    58,574,560 has been minted.
-//
-//    6. whenever a user creates a bond, the amount (100%) should go directly to a
-//    specified address (multisig). This specified address should be editable by
-//    the owner. The owner will initially be multisig.
-
 contract FlashBondConstant is Ownable {
 
     using SafeMath for uint256;
