@@ -13,7 +13,7 @@ contract FlashNFT is ERC721URIStorage, Ownable {
     constructor() public ERC721("Flashstake NFT", "FLASHNFT") {}
 
     function contractURI() public view returns (string memory) {
-        return "https://nft.flashstake.io/metadata.json";
+        return "https://nft.flashstake.io/metadata";
     }
 
     function _baseURI() internal view virtual override returns (string memory) {
@@ -32,8 +32,8 @@ contract FlashNFT is ERC721URIStorage, Ownable {
 
     // Only the FlashV3 protocol (owner) can mint
     function mint(address _recipientAddress) public onlyOwner returns (uint256) {
-        _mint(_recipientAddress, tokenIds.current());
         tokenIds.increment();
+        _mint(_recipientAddress, tokenIds.current());
 
         return tokenIds.current();
     }
