@@ -1,6 +1,6 @@
 import hre from "hardhat";
 import {
-  FlashNFT, FlashToken,
+  FlashToken,
 } from "../../typechain";
 import { Artifact } from "hardhat/types";
 import { expect } from "chai";
@@ -39,7 +39,7 @@ describe("Flash Token Tests", function() {
   it("should fail minting as non owner", async function () {
     await expect(
       flashTokenContract.connect(this.signers[1]).mint(this.signers[1].address, BigNumber.from(10000).mul(multiplier)),
-    ).to.be.revertedWith("AccessControl: account 0xffcf8fdee72ac11b5c542428b35eef5769c409f0 is missing role 0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6");
+    ).to.be.reverted;
   });
 
   it("should burn tokens", async function () {
