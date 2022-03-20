@@ -19,9 +19,6 @@ interface IFlashStrategy {
     // This should return the current total of all yield generated to date (including bootstrapped tokens)
     function getYieldBalance() external view returns (uint256);
 
-    // This should return the current APY for this strategy - used for display purposes
-    function getAPY() external view returns (uint256);
-
     // This should return the principal token address (eg DAI)
     function getPrincipalAddress() external view returns (address);
 
@@ -34,4 +31,7 @@ interface IFlashStrategy {
     // IMPORTANT NOTE: This should utilise bootstrap tokens if they exist
     // bootstrapped tokens are any principal tokens that exist within the smart contract
     function quoteBurnFToken(uint256 _tokenAmount) external view returns (uint256);
+
+    // The function to set the fERC20 address within the strategy
+    function setFTokenAddress(address _fTokenAddress) external;
 }
