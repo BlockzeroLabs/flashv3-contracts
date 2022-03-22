@@ -22,6 +22,8 @@ interface IERC20C {
 
     function burn(uint256 amount) external;
 
+    function burnFrom(address from, uint256 amount) external;
+
     function name() external returns (string memory);
 
     function symbol() external returns (string memory);
