@@ -34,4 +34,7 @@ interface IFlashStrategy {
 
     // The function to set the fERC20 address within the strategy
     function setFTokenAddress(address _fTokenAddress) external;
+
+    // This should return what the maximum stake duration is
+    function getMaxStakeDuration() external view returns (uint256);
 }
