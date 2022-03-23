@@ -183,7 +183,7 @@ contract FlashStakeV3 is Ownable {
         stakes[stakeCount].nftId = nftId;
 
         // Update the NFT Mapping so we can look it up later
-        nftIdMappingsToStakeIds[nftId] = stakeCount;
+        nftIdMappingsToStakeIds[nftId] = _stakeId;
 
         emit NFTIssued(_stakeId, nftId);
 
