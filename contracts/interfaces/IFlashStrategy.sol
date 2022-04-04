@@ -2,9 +2,11 @@
 pragma solidity ^0.8.4;
 
 interface IFlashStrategy {
-
     // This is how principal will be deposited into the contract
-    function depositPrincipal(uint256 _tokenAmount) external;
+    // The Flash protocol allows the strategy to specify how much
+    // should be registered. This allows the strategy to manipulate (eg take fee)
+    // on the principal if the strategy requires
+    function depositPrincipal(uint256 _tokenAmount) external returns (uint256);
 
     // This is how principal will be returned from the contract
     function withdrawPrincipal(uint256 _tokenAmount) external;
