@@ -8,16 +8,15 @@ import "../interfaces/AAVE/ILendingPool.sol";
 import "../interfaces/IFlashStrategy.sol";
 
 contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
-
     using SafeMath for uint256;
 
     address flashProtocolAddress;
-    address fTokenAddress;                  // The Flash fERC20 token address
-    address lendingPoolAddress;             // The AAVE V2 lending pool address
-    address principalTokenAddress;          // The Principal token address (eg DAI)
-    address interestBearingTokenAddress;    // The AAVE V2 interest bearing token address
-    uint16 referralCode = 0;                // The AAVE V2 referral code
-    uint256 principalBalance;               // The amount of principal in this strategy
+    address fTokenAddress; // The Flash fERC20 token address
+    address lendingPoolAddress; // The AAVE V2 lending pool address
+    address principalTokenAddress; // The Principal token address (eg DAI)
+    address interestBearingTokenAddress; // The AAVE V2 interest bearing token address
+    uint16 referralCode = 0; // The AAVE V2 referral code
+    uint256 principalBalance; // The amount of principal in this strategy
 
     event PrincipalDeposit(uint256 _tokenAmount);
     event YieldWithdrawn(uint256 _tokenAmount);
@@ -26,7 +25,14 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
 
     uint256 maxStakeDuration;
 
-    constructor(address _lendingPoolAddress, address _principalTokenAddress, address _interestBearingTokenAddress, address _flashProtocolAddress) public {
+    mapping(address => uint256) public fTokensBurned;
+
+    constructor(
+        address _lendingPoolAddress,
+        address _principalTokenAddress,
+        address _interestBearingTokenAddress,
+        address _flashProtocolAddress
+    ) public {
         lendingPoolAddress = _lendingPoolAddress;
         principalTokenAddress = _principalTokenAddress;
         interestBearingTokenAddress = _interestBearingTokenAddress;
@@ -40,17 +46,18 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         IERC20C(principalTokenAddress).approve(lendingPoolAddress, 2**256 - 1);
     }
 
-    function depositPrincipal(uint256 _tokenAmount) public onlyFlashProtocol {
+    function depositPrincipal(uint256 _tokenAmount) public onlyFlashProtocol returns (uint256) {
         // Register how much we are depositing
         principalBalance = principalBalance + _tokenAmount;
 
         // Deposit into AAVE
         ILendingPool(lendingPoolAddress).deposit(principalTokenAddress, _tokenAmount, address(this), referralCode);
         emit PrincipalDeposit(_tokenAmount);
+
+        return _tokenAmount;
     }
 
     function withdrawYield(uint256 _tokenAmount) private {
-
         // Withdraw from AAVE
         ILendingPool(lendingPoolAddress).withdraw(principalTokenAddress, _tokenAmount, address(this));
 
@@ -60,8 +67,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         emit YieldWithdrawn(_tokenAmount);
     }
 
-    function withdrawPrincipal(uint256 _tokenAmount) onlyFlashProtocol public {
-
+    function withdrawPrincipal(uint256 _tokenAmount) public onlyFlashProtocol {
         // Withdraw from AAVE
         ILendingPool(lendingPoolAddress).withdraw(principalTokenAddress, _tokenAmount, address(this));
 
@@ -131,7 +137,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         return (totalYield * ((_tokenAmount * _tokenAmount) / totalSupply)) / _tokenAmount;
     }
 
-    function burnFToken(uint256 _tokenAmount, uint256 _minimumReturned) external returns(uint256) {
+    function burnFToken(uint256 _tokenAmount, uint256 _minimumReturned) external returns (uint256) {
         // Calculate how much yield to give back
         uint256 tokensOwed = quoteBurnFToken(_tokenAmount);
         require(tokensOwed >= _minimumReturned, "INSUFFICIENT OUTPUT");
@@ -139,9 +145,12 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         // Transfer fERC20 (from caller) tokens to contract so we can burn them
         IERC20C(fTokenAddress).burnFrom(msg.sender, _tokenAmount);
 
+        // Update the total
+        fTokensBurned[msg.sender] += _tokenAmount;
+
         // Can we pay all of this yield via the bootstrapped tokens
         uint256 bootstrapBalance = IERC20C(principalTokenAddress).balanceOf(address(this));
-        if(bootstrapBalance >= tokensOwed) {
+        if (bootstrapBalance >= tokensOwed) {
             IERC20C(principalTokenAddress).transfer(msg.sender, tokensOwed);
         } else {
             uint256 amountToWithdraw = remainderSubtract(tokensOwed, bootstrapBalance);
@@ -157,17 +166,21 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         return tokensOwed;
     }
 
-    function remainderSubtract(uint a, uint b) public pure returns(uint remainder) {
-        if(b>a) return 0;
-        return a-b;
+    function remainderSubtract(uint256 a, uint256 b) public pure returns (uint256 remainder) {
+        if (b > a) return 0;
+        return a - b;
     }
 
-    modifier onlyFlashProtocol {
+    modifier onlyFlashProtocol() {
         require(msg.sender == flashProtocolAddress || msg.sender == address(this), "NOT FLASH PROTOCOL");
         _;
     }
 
-    function getMaxStakeDuration() public view returns(uint256) {
+    function getMaxStakeDuration() public view returns (uint256) {
         return 63072000; // Static 720 days (2 years)
+    }
+
+    function getTotalFTokenBurned(address _address) public view returns (uint256) {
+        return fTokensBurned[_address];
     }
 }
