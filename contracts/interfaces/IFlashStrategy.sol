@@ -11,9 +11,6 @@ interface IFlashStrategy {
     // This is how principal will be returned from the contract
     function withdrawPrincipal(uint256 _tokenAmount) external;
 
-    // This is how principal will be returned from the contract
-    function withdrawYield(uint256 _tokenAmount) external;
-
     // Responsible for instant upfront yield. Takes fERC20 tokens specific to this
     // strategy. The strategy is responsible for returning some amount of principal tokens
     function burnFToken(uint256 _tokenAmount, uint256 _minimumReturned) external returns (uint256);
