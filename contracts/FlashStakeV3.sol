@@ -72,10 +72,8 @@ contract FlashStakeV3 is Ownable {
     event NFTIssued(uint256 _stakeId, uint256 nftId);
     event NFTRedeemed(uint256 _stakeId, uint256 nftId);
 
-    constructor() public {
-        // Deploy NFT which will represent Stakes and store the address
-        FlashNFT flashNFT = new FlashNFT();
-        flashNFTAddress = address(flashNFT);
+    constructor(address _flashNFTAddress) public {
+        flashNFTAddress = _flashNFTAddress;
     }
 
     function getFlashNFTAddress() public view returns (address) {
