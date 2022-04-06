@@ -300,4 +300,28 @@ contract FlashStakeV3 is Ownable {
 
         return stakes[stakeId];
     }
+
+    function flashStake(
+        address _strategyAddress,
+        uint256 _tokenAmount,
+        uint256 _stakeDuration,
+        bool _issueNFT
+    ) public returns (bool) {
+        // Stake
+        uint256 fTokensMinted = stake(_strategyAddress, _tokenAmount, _stakeDuration, _issueNFT).fTokensToUser;
+
+        FlashFToken fToken = FlashFToken(strategies[_strategyAddress].fTokenAddress);
+        fToken.transferFrom(msg.sender, address(this), fTokensMinted);
+
+        // Quote, approve, burn
+        uint256 quotedReturn = IFlashStrategy(_strategyAddress).quoteBurnFToken(fTokensMinted);
+
+        fToken.approve(_strategyAddress, fTokensMinted);
+        uint256 tokensReturned = IFlashStrategy(_strategyAddress).burnFToken(fTokensMinted, quotedReturn);
+
+        // Transfer yield to user
+        IERC20C(strategies[_strategyAddress].principalTokenAddress).transfer(msg.sender, tokensReturned);
+
+        return true;
+    }
 }

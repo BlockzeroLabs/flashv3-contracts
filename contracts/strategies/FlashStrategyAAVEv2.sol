@@ -57,7 +57,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         return _tokenAmount;
     }
 
-    function withdrawYield(uint256 _tokenAmount) private {
+    function withdrawYield(uint256 _tokenAmount) private onlyFlashProtocol {
         // Withdraw from AAVE
         ILendingPool(lendingPoolAddress).withdraw(principalTokenAddress, _tokenAmount, address(this));
 

@@ -1,15 +1,12 @@
 import hre from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import {
-  FlashStakeV3, FlashStrategyAAVEv2,
-} from "../../typechain";
+import { FlashStakeV3, FlashStrategyAAVEv2 } from "../../typechain";
 import { Artifact } from "hardhat/types";
 import { expect } from "chai";
 import { BigNumber, ContractReceipt } from "ethers";
 const { deployContract } = hre.waffle;
 
 describe("Flashstake Tests", function () {
-
   const multiplier = BigNumber.from(10).pow(BigNumber.from(18));
 
   let principalTokenAddress = "0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD";
@@ -33,9 +30,14 @@ describe("Flashstake Tests", function () {
     const flashProtocolAddress = protocolContract.address;
 
     const strategyArtifact: Artifact = await hre.artifacts.readArtifact("FlashStrategyAAVEv2");
-    strategyContract = <FlashStrategyAAVEv2>await deployContract(signers[0], strategyArtifact, [
-      lendingPoolAddress, principalTokenAddress, interestBearingTokenAddress, flashProtocolAddress
-    ]);
+    strategyContract = <FlashStrategyAAVEv2>(
+      await deployContract(signers[0], strategyArtifact, [
+        lendingPoolAddress,
+        principalTokenAddress,
+        interestBearingTokenAddress,
+        flashProtocolAddress,
+      ])
+    );
 
     // 3. Register this strategy with the Flash Protocol
     // Note: This will also call the strategy and set the fTokenAdress
@@ -55,7 +57,9 @@ describe("Flashstake Tests", function () {
   });
 
   it("should fail when trying to register the same strategy again with error STRATEGY ALREADY REGISTERED", async function () {
-    await expect(protocolContract.registerStrategy(strategyContract.address, principalTokenAddress, "fDAI", "fDAI")).to.be.revertedWith("STRATEGY ALREADY REGISTERED");
+    await expect(
+      protocolContract.registerStrategy(strategyContract.address, principalTokenAddress, "fDAI", "fDAI"),
+    ).to.be.revertedWith("STRATEGY ALREADY REGISTERED");
   });
 
   it("should impersonate account 0xca4ad39f872e89ef23eabd5716363fc22513e147 and transfer 1,000,000 DAI to account 1", async function () {
@@ -81,7 +85,9 @@ describe("Flashstake Tests", function () {
 
   it("should fail staking 1,000 DAI from account 1 into unregistered strategy with error UNREGISTERED STRATEGY", async function () {
     // We are specifying a strategy address which is unregistered (protocolContract.address)
-    await expect(protocolContract.connect(signers[1]).stake(protocolContract.address, 1, 1, false)).to.be.revertedWith("UNREGISTERED STRATEGY");
+    await expect(protocolContract.connect(signers[1]).stake(protocolContract.address, 1, 1, false)).to.be.revertedWith(
+      "UNREGISTERED STRATEGY",
+    );
   });
 
   it("should fail when staking for 59 seconds with error MINIMUM STAKE DURATION IS 60 SECONDS", async function () {
@@ -92,7 +98,9 @@ describe("Flashstake Tests", function () {
     const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
     await daiContract.connect(signers[1]).approve(protocolContract.address, _amount);
 
-    await expect(protocolContract.connect(signers[1]).stake(strategyContract.address, _amount, _duration, false)).to.be.revertedWith("MINIMUM STAKE DURATION IS 60 SECONDS");
+    await expect(
+      protocolContract.connect(signers[1]).stake(strategyContract.address, _amount, _duration, false),
+    ).to.be.revertedWith("MINIMUM STAKE DURATION IS 60 SECONDS");
   });
 
   it("should fail when staking for 720 days and 1 second with error EXCEEDS MAX STAKE DURATION", async function () {
@@ -103,7 +111,9 @@ describe("Flashstake Tests", function () {
     const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
     await daiContract.connect(signers[1]).approve(protocolContract.address, _amount);
 
-    await expect(protocolContract.connect(signers[1]).stake(strategyContract.address, _amount, _duration, false)).to.be.revertedWith("EXCEEDS MAX STAKE DURATION");
+    await expect(
+      protocolContract.connect(signers[1]).stake(strategyContract.address, _amount, _duration, false),
+    ).to.be.revertedWith("EXCEEDS MAX STAKE DURATION");
   });
 
   it("should stake 1,000 DAI from account 1 (do not issue NFT)", async function () {
@@ -115,14 +125,18 @@ describe("Flashstake Tests", function () {
     await daiContract.connect(signers[1]).approve(protocolContract.address, _amount);
 
     // Perform the stake
-    const result = await protocolContract.connect(signers[1]).stake(strategyContract.address, _amount, _duration, false);
+    const result = await protocolContract
+      .connect(signers[1])
+      .stake(strategyContract.address, _amount, _duration, false);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore
-    const args = (receipt.events?.filter((x) => {return x.event == "Staked"}))[0]['args'];
+    const args = (receipt.events?.filter(x => {
+      return x.event == "Staked";
+    }))[0]["args"];
     // @ts-ignore
-    const fTokenMinted = args['_fTokenMinted'];
+    const fTokenMinted = args["_fTokenMinted"];
 
     const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
     expect(await fTokenContract.balanceOf(signers[1].address)).to.be.eq(fTokenMinted);
@@ -138,8 +152,8 @@ describe("Flashstake Tests", function () {
 
   it("should unstake as account 1 after 365 days", async function () {
     // Increase the timestamp of the next block
-    const newTs = (new Date().getTime() / 1000) + 31536000; // Get the current Ts and add 355 days
-    await hre.network.provider.send("evm_setNextBlockTimestamp", [newTs])
+    const newTs = new Date().getTime() / 1000 + 31536000; // Get the current Ts and add 355 days
+    await hre.network.provider.send("evm_setNextBlockTimestamp", [newTs]);
     await hre.network.provider.send("evm_mine");
 
     const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
@@ -181,9 +195,11 @@ describe("Flashstake Tests", function () {
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore
-    const args = (receipt.events?.filter((x) => {return x.event == "Staked"}))[0]['args'];
+    const args = (receipt.events?.filter(x => {
+      return x.event == "Staked";
+    }))[0]["args"];
     // @ts-ignore
-    const fTokenMinted = args['_fTokenMinted'];
+    const fTokenMinted = args["_fTokenMinted"];
 
     const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
     expect(await fTokenContract.balanceOf(signers[2].address)).to.be.eq(fTokenMinted);
@@ -206,10 +222,9 @@ describe("Flashstake Tests", function () {
   });
 
   it("should fail when account 2 attempts to unstake (without NFT) after 365 days with error NFT TOKEN REQUIRED", async function () {
-
     // Increase the timestamp of the next block
-    const newTs = (new Date().getTime() / 1000) + (31536000*4);
-    await hre.network.provider.send("evm_setNextBlockTimestamp", [newTs])
+    const newTs = new Date().getTime() / 1000 + 31536000 * 4;
+    await hre.network.provider.send("evm_setNextBlockTimestamp", [newTs]);
     await hre.network.provider.send("evm_mine");
 
     await expect(protocolContract.connect(signers[2]).unstake(2, false)).to.be.revertedWith("NFT TOKEN REQUIRED");
@@ -218,13 +233,17 @@ describe("Flashstake Tests", function () {
   it("should fail when account 2 attempts to unstake with invalid nft ID with error NFT FOR STAKE NON-EXISTENT", async function () {
     // We don't need to increase the EVM ts because we did that in the last test
 
-    await expect(protocolContract.connect(signers[2]).unstake(100, true)).to.be.revertedWith("NFT FOR STAKE NON-EXISTENT");
+    await expect(protocolContract.connect(signers[2]).unstake(100, true)).to.be.revertedWith(
+      "NFT FOR STAKE NON-EXISTENT",
+    );
   });
 
   it("should fail when account 6 attempts to unstake with NFT ID they do not own", async function () {
     // We don't need to increase the EVM ts because we did that in the last test
 
-    await expect(protocolContract.connect(signers[6]).unstake(100, true)).to.be.revertedWith("NFT FOR STAKE NON-EXISTENT");
+    await expect(protocolContract.connect(signers[6]).unstake(100, true)).to.be.revertedWith(
+      "NFT FOR STAKE NON-EXISTENT",
+    );
   });
 
   it("should fail when account 6 attempts to unstake NFT they do not own with error NOT OWNER OF NFT", async function () {
@@ -275,14 +294,18 @@ describe("Flashstake Tests", function () {
     await daiContract.connect(signers[3]).approve(protocolContract.address, _amount);
 
     // Perform the stake
-    const result = await protocolContract.connect(signers[3]).stake(strategyContract.address, _amount, _duration, false);
+    const result = await protocolContract
+      .connect(signers[3])
+      .stake(strategyContract.address, _amount, _duration, false);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore
-    const args = (receipt.events?.filter((x) => {return x.event == "Staked"}))[0]['args'];
+    const args = (receipt.events?.filter(x => {
+      return x.event == "Staked";
+    }))[0]["args"];
     // @ts-ignore
-    const fTokenMinted = args['_fTokenMinted'];
+    const fTokenMinted = args["_fTokenMinted"];
 
     console.log("(1) input tokens =", _amount.toString());
     // @ts-ignore
@@ -300,7 +323,7 @@ describe("Flashstake Tests", function () {
     console.log("(2) stake info: stakeStartTs:", stakeInfo["stakeStartTs"].toString());
     console.log("(2) stake info: stakeDuration:", stakeInfo["stakeDuration"].toString());
 
-    const newTs = stakeInfo['stakeStartTs'].add(stakeInfo['stakeDuration'].div(BigNumber.from(4))).sub(1);
+    const newTs = stakeInfo["stakeStartTs"].add(stakeInfo["stakeDuration"].div(BigNumber.from(4))).sub(1);
     console.log("(2) setting next block timestamp to", newTs.toString());
 
     // Set the next block timestamp
@@ -308,7 +331,6 @@ describe("Flashstake Tests", function () {
   });
 
   it("should unstake early from account 3 (not using NFT) and burn 750.000000384000000000 fTokens", async function () {
-
     // Approve the fToken contract for spending
     const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
     await fTokenContract.connect(signers[3]).approve(protocolContract.address, BigNumber.from(1000000).mul(multiplier));
@@ -319,7 +341,9 @@ describe("Flashstake Tests", function () {
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore
-    const args = (receipt.events?.filter((x) => {return x.event == "Unstaked"}))[0]['args'];
+    const args = (receipt.events?.filter(x => {
+      return x.event == "Unstaked";
+    }))[0]["args"];
     // @ts-ignore
     expect(args["_tokensReturned"]).to.be.eq(BigNumber.from(1000).mul(multiplier));
     // @ts-ignore
@@ -327,11 +351,15 @@ describe("Flashstake Tests", function () {
   });
 
   it("should fail when setting fToken fee as non-owner with error Ownable: caller is not the owner", async function () {
-    await expect(protocolContract.connect(signers[5]).setMintFees("0x5089722613C2cCEe071C39C59e9889641f435F15", 20000)).to.be.revertedWith("Ownable: caller is not the owner");
+    await expect(
+      protocolContract.connect(signers[5]).setMintFees("0x5089722613C2cCEe071C39C59e9889641f435F15", 20000),
+    ).to.be.revertedWith("Ownable: caller is not the owner");
   });
 
   it("should fail when setting fee to 20.01% with error MINT FEE TOO HIGH", async function () {
-    await expect(protocolContract.connect(signers[0]).setMintFees("0x5089722613C2cCEe071C39C59e9889641f435F15", 2001)).to.be.revertedWith("MINT FEE TOO HIGH");
+    await expect(
+      protocolContract.connect(signers[0]).setMintFees("0x5089722613C2cCEe071C39C59e9889641f435F15", 2001),
+    ).to.be.revertedWith("MINT FEE TOO HIGH");
   });
 
   it("should set fee: 20% to 0x5089722613C2cCEe071C39C59e9889641f435F15", async function () {
@@ -362,14 +390,18 @@ describe("Flashstake Tests", function () {
     await daiContract.connect(signers[4]).approve(protocolContract.address, _amount);
 
     // Perform the stake
-    const result = await protocolContract.connect(signers[4]).stake(strategyContract.address, _amount, _duration, false);
+    const result = await protocolContract
+      .connect(signers[4])
+      .stake(strategyContract.address, _amount, _duration, false);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore
-    const args = (receipt.events?.filter((x) => {return x.event == "Staked"}))[0]['args'];
+    const args = (receipt.events?.filter(x => {
+      return x.event == "Staked";
+    }))[0]["args"];
     // @ts-ignore
-    const fTokenMinted = args['_fTokenMinted'];
+    const fTokenMinted = args["_fTokenMinted"];
 
     expect(fTokenMinted).to.be.eq("800000000409600000000");
   });
@@ -418,20 +450,24 @@ describe("Flashstake Tests", function () {
     await daiContract.connect(signers[5]).approve(protocolContract.address, _amount);
 
     // Perform the stake
-    const result = await protocolContract.connect(signers[5]).stake(strategyContract.address, _amount, _duration, false);
+    const result = await protocolContract
+      .connect(signers[5])
+      .stake(strategyContract.address, _amount, _duration, false);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore
-    const args = (receipt.events?.filter((x) => {return x.event == "Staked"}))[0]['args'];
+    const args = (receipt.events?.filter(x => {
+      return x.event == "Staked";
+    }))[0]["args"];
     // @ts-ignore
-    const fTokenMinted = args['_fTokenMinted'];
+    const fTokenMinted = args["_fTokenMinted"];
     // @ts-ignore
-    console.log("(1) stake id:", args['_stakeId'].toString());
+    console.log("(1) stake id:", args["_stakeId"].toString());
     // @ts-ignore
-    console.log("(1) _fTokenMinted", args['_fTokenMinted'].toString());
+    console.log("(1) _fTokenMinted", args["_fTokenMinted"].toString());
     // @ts-ignore
-    console.log("(1) _fTokenFee:", args['_fTokenFee'].toString());
+    console.log("(1) _fTokenFee:", args["_fTokenFee"].toString());
 
     expect(fTokenMinted).to.be.eq("8000000004096000000000");
   });
@@ -445,13 +481,14 @@ describe("Flashstake Tests", function () {
   });
 
   it("(2) should issue nft for stake id 5 as account 5", async function () {
-
     const result = await protocolContract.connect(signers[5]).issueNFT(5);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore
-    const args = (receipt.events?.filter((x) => {return x.event == "NFTIssued"}))[0]['args'];
+    const args = (receipt.events?.filter(x => {
+      return x.event == "NFTIssued";
+    }))[0]["args"];
     // @ts-ignore
     expect(args["_stakeId"]).to.be.eq(5);
 
@@ -466,7 +503,9 @@ describe("Flashstake Tests", function () {
   it("should fail when account 2 attempts to unstakeEarly with invalid nft ID with error NFT FOR STAKE NON-EXISTENT", async function () {
     // We don't need to increase the EVM ts because we did that in the last test
 
-    await expect(protocolContract.connect(signers[2]).unstakeEarly(100, true)).to.be.revertedWith("NFT FOR STAKE NON-EXISTENT");
+    await expect(protocolContract.connect(signers[2]).unstakeEarly(100, true)).to.be.revertedWith(
+      "NFT FOR STAKE NON-EXISTENT",
+    );
   });
 
   it("should fail when account 2 attempts to unstake NFT they do not own with error NOT OWNER OF NFT", async function () {
@@ -480,13 +519,14 @@ describe("Flashstake Tests", function () {
   });
 
   it("should fail unstaking early with nft with error MINIMUM STAKE DURATION IS 60 SECONDS", async function () {
-
     // Approve the fToken contract for spending
     const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
     await fTokenContract.connect(signers[5]).approve(protocolContract.address, BigNumber.from(1000000).mul(multiplier));
 
     // Perform the early unstake
-    await expect(protocolContract.connect(signers[5]).unstakeEarly(2, true)).to.be.revertedWith("MINIMUM STAKE DURATION IS 60 SECONDS")
+    await expect(protocolContract.connect(signers[5]).unstakeEarly(2, true)).to.be.revertedWith(
+      "MINIMUM STAKE DURATION IS 60 SECONDS",
+    );
   });
 
   it("(2) set next block timestamp to 50% into stake", async function () {
@@ -495,7 +535,7 @@ describe("Flashstake Tests", function () {
     console.log("(2) stake info: stakeStartTs:", stakeInfo["stakeStartTs"].toString());
     console.log("(2) stake info: stakeDuration:", stakeInfo["stakeDuration"].toString());
 
-    const newTs = stakeInfo['stakeStartTs'].add(stakeInfo['stakeDuration'].div(BigNumber.from(2))).sub(1);
+    const newTs = stakeInfo["stakeStartTs"].add(stakeInfo["stakeDuration"].div(BigNumber.from(2))).sub(1);
     console.log("(2) setting next block timestamp to", newTs.toString());
 
     // Set the next block timestamp
@@ -503,7 +543,6 @@ describe("Flashstake Tests", function () {
   });
 
   it("should unstake early from account 5 (using NFT) and burn 4000.000002048 fTokens", async function () {
-
     // Approve the fToken contract for spending
     const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
     await fTokenContract.connect(signers[5]).approve(protocolContract.address, BigNumber.from(1000000).mul(multiplier));
@@ -514,10 +553,50 @@ describe("Flashstake Tests", function () {
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore
-    const args = (receipt.events?.filter((x) => {return x.event == "Unstaked"}))[0]['args'];
+    const args = (receipt.events?.filter(x => {
+      return x.event == "Unstaked";
+    }))[0]["args"];
     // @ts-ignore
     expect(args["_tokensReturned"]).to.be.eq(BigNumber.from(10000).mul(multiplier));
     // @ts-ignore
     expect(args["_fTokensBurned"]).to.be.eq("4000000002048000000000");
+  });
+
+  it("should impersonate account 0xca4ad39f872e89ef23eabd5716363fc22513e147 and transfer 1,000 DAI to account 6", async function () {
+    await hre.network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: ["0xca4ad39f872e89ef23eabd5716363fc22513e147"],
+    });
+    const signer = await hre.ethers.getSigner("0xca4ad39f872e89ef23eabd5716363fc22513e147");
+    const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
+
+    // Connect using the impersonated account and transfer 1,000,000 DAI
+    daiContract.connect(signer).transfer(signers[6].address, BigNumber.from(1000).mul(multiplier));
+
+    const balance = await daiContract.balanceOf(signers[6].address);
+    expect(balance).gte(BigNumber.from(1000).mul(multiplier));
+  });
+
+  it("account 6 should flashstake 1000 DAI and wallet DAI balance is > 0", async function () {
+    const _amount = BigNumber.from(1000).mul(multiplier);
+    const _duration = 63072000;
+
+    // Expect the balance to be initially 1000
+    const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
+    expect(await daiContract.balanceOf(signers[6].address)).to.be.eq(_amount);
+
+    // Perform approvals
+    await daiContract.connect(signers[6]).approve(protocolContract.address, _amount);
+
+    const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
+    await fTokenContract.connect(signers[6]).approve(protocolContract.address, BigNumber.from(1000000).mul(multiplier));
+
+    const result = await protocolContract
+      .connect(signers[6])
+      .flashStake(strategyContract.address, _amount, _duration, false);
+    expect(await daiContract.balanceOf(signers[6].address)).to.be.gt(0);
+
+    // Since the initial 1000 DAI was staked, it is no longer in the wallet. Once burning the fDAI, we expect there to
+    // be some DAI in the wallet again (the yield they generated during the flashstake)
   });
 });
