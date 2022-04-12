@@ -76,7 +76,7 @@ describe("Flashstake Tests", function () {
     const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
 
     // Connect using the impersonated account and transfer 1,000,000 DAI
-    daiContract.connect(signer).transfer(signers[1].address, BigNumber.from(1000000).mul(multiplier));
+    await daiContract.connect(signer).transfer(signers[1].address, BigNumber.from(1000000).mul(multiplier));
 
     const balance = await daiContract.balanceOf(signers[1].address);
     expect(balance).gte(BigNumber.from(1000000).mul(multiplier));
@@ -180,7 +180,7 @@ describe("Flashstake Tests", function () {
     const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
 
     // Connect using the impersonated account and transfer 1,000,000 DAI
-    daiContract.connect(signer).transfer(signers[2].address, BigNumber.from(2000).mul(multiplier));
+    await daiContract.connect(signer).transfer(signers[2].address, BigNumber.from(2000).mul(multiplier));
 
     const balance = await daiContract.balanceOf(signers[2].address);
     expect(balance).gte(BigNumber.from(2000).mul(multiplier));
@@ -284,7 +284,7 @@ describe("Flashstake Tests", function () {
     const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
 
     // Connect using the impersonated account and transfer 1,000,000 DAI
-    daiContract.connect(signer).transfer(signers[3].address, BigNumber.from(2000).mul(multiplier));
+    await daiContract.connect(signer).transfer(signers[3].address, BigNumber.from(2000).mul(multiplier));
 
     const balance = await daiContract.balanceOf(signers[3].address);
     expect(balance).gte(BigNumber.from(2000).mul(multiplier));
@@ -380,7 +380,7 @@ describe("Flashstake Tests", function () {
     const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
 
     // Connect using the impersonated account and transfer 1,000,000 DAI
-    daiContract.connect(signer).transfer(signers[4].address, BigNumber.from(1000).mul(multiplier));
+    await daiContract.connect(signer).transfer(signers[4].address, BigNumber.from(1000).mul(multiplier));
 
     const balance = await daiContract.balanceOf(signers[4].address);
     expect(balance).gte(BigNumber.from(1000).mul(multiplier));
@@ -440,7 +440,7 @@ describe("Flashstake Tests", function () {
     const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
 
     // Connect using the impersonated account and transfer 1,000,000 DAI
-    daiContract.connect(signer).transfer(signers[5].address, BigNumber.from(10000).mul(multiplier));
+    await daiContract.connect(signer).transfer(signers[5].address, BigNumber.from(10000).mul(multiplier));
 
     const balance = await daiContract.balanceOf(signers[5].address);
     expect(balance).gte(BigNumber.from(10000).mul(multiplier));
@@ -576,7 +576,7 @@ describe("Flashstake Tests", function () {
     const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
 
     // Connect using the impersonated account and transfer 1,000,000 DAI
-    daiContract.connect(signer).transfer(signers[6].address, BigNumber.from(1000).mul(multiplier));
+    await daiContract.connect(signer).transfer(signers[6].address, BigNumber.from(1000).mul(multiplier));
 
     const balance = await daiContract.balanceOf(signers[6].address);
     expect(balance).gte(BigNumber.from(1000).mul(multiplier));

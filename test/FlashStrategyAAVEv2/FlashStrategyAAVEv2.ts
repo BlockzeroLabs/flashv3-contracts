@@ -81,7 +81,7 @@ describe("FlashStrategyAAVEv2 Tests", function () {
     const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
 
     // Connect using the impersonated account and transfer 1,000,000 DAI
-    daiContract.connect(signer).transfer(this.signers[0].address, BigNumber.from(1000000).mul(multiplier));
+    await daiContract.connect(signer).transfer(this.signers[0].address, BigNumber.from(1000000).mul(multiplier));
 
     startingDaiBalance = await daiContract.balanceOf(this.signers[0].address);
     expect(startingDaiBalance).gte(BigNumber.from(1000000).mul(multiplier)); // We only need 10,000 for tests
@@ -464,7 +464,7 @@ describe("FlashStrategyAAVEv2 Bootstrap Tests", function () {
     const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
 
     // Connect using the impersonated account and transfer 1,000,000 DAI
-    daiContract.connect(signer).transfer(this.signers[0].address, BigNumber.from(1000000).mul(multiplier));
+    await daiContract.connect(signer).transfer(this.signers[0].address, BigNumber.from(1000000).mul(multiplier));
 
     startingDaiBalance = await daiContract.balanceOf(this.signers[0].address);
     expect(startingDaiBalance).gte(BigNumber.from(1000000).mul(multiplier)); // We only need 10,000 for tests
