@@ -383,12 +383,6 @@ describe("FlashStrategyAAVEv2 Tests", function () {
       BigNumber.from(10000).mul(multiplier),
     );
   });
-
-  it("should return that account 0 has burned 10000.00000512 fERC20", async function () {
-    expect(await this.flashStrategyAAVEv2Artifact.getTotalFTokenBurned(this.signers[0].address)).to.be.eq(
-      BigNumber.from("10000000005120000000000"),
-    );
-  });
 });
 
 describe("FlashStrategyAAVEv2 Bootstrap Tests", function () {
@@ -632,13 +626,13 @@ describe("FlashStrategyAAVEv2 Bootstrap Tests", function () {
     expect(yieldReturned).to.be.gte(yieldBalance);
   });
 
-  it("should ensure principal balance is 10,000 aDAI", async function () {
+  it("should ensure principal balance is >= 10,000 aDAI", async function () {
     const currentPrincipalBalance = await this.flashStrategyAAVEv2Artifact.getPrincipalBalance();
 
     const aTokenContract = await hre.ethers.getContractAt("IERC20C", interestBearingTokenAddress);
     const currentATokenBalance = await aTokenContract.balanceOf(this.flashStrategyAAVEv2Artifact.address);
 
-    expect(currentPrincipalBalance).to.be.eq(BigNumber.from(10000).mul(multiplier));
+    expect(currentPrincipalBalance).to.be.gte(BigNumber.from(10000).mul(multiplier));
     expect(currentATokenBalance).to.be.eq(BigNumber.from(10000).mul(multiplier));
   });
 

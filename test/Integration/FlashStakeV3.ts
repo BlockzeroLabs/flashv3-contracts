@@ -1,9 +1,9 @@
 import hre from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import { FlashNFT, FlashStakeV3, FlashStrategyAAVEv2 } from "../../typechain";
+import { FlashNFT, FlashStakeV3, FlashStrategyAAVEv2, FlashToken } from "../../typechain";
 import { Artifact } from "hardhat/types";
 import { expect } from "chai";
-import { BigNumber, ContractReceipt } from "ethers";
+import { BigNumber, ContractReceipt, ethers } from "ethers";
 const { deployContract } = hre.waffle;
 
 describe("Flashstake Tests", function () {
@@ -15,6 +15,7 @@ describe("Flashstake Tests", function () {
 
   let protocolContract: FlashStakeV3;
   let strategyContract: FlashStrategyAAVEv2;
+  let flashTokenContract: FlashToken;
 
   let signers: SignerWithAddress[];
 
@@ -596,12 +597,211 @@ describe("Flashstake Tests", function () {
     const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
     await fTokenContract.connect(signers[6]).approve(protocolContract.address, BigNumber.from(1000000).mul(multiplier));
 
-    const result = await protocolContract
-      .connect(signers[6])
-      .flashStake(strategyContract.address, _amount, _duration, false);
+    await protocolContract.connect(signers[6]).flashStake(strategyContract.address, _amount, _duration, false);
     expect(await daiContract.balanceOf(signers[6].address)).to.be.gt(0);
 
     // Since the initial 1000 DAI was staked, it is no longer in the wallet. Once burning the fDAI, we expect there to
     // be some DAI in the wallet again (the yield they generated during the flashstake)
+  });
+
+  it("account 0 should deploy Flash Token contract", async function () {
+    const tokenArtifact: Artifact = await hre.artifacts.readArtifact("FlashToken");
+    flashTokenContract = <FlashToken>await deployContract(signers[0], tokenArtifact);
+  });
+
+  it("account 0 should approve spending of 150,000 Flash tokens against Strategy contract", async function () {
+    const _amount = BigNumber.from(150000).mul(multiplier);
+    await flashTokenContract.connect(signers[0]).approve(strategyContract.address, _amount);
+  });
+
+  it("non-owner should fail when depositing reward with error Ownable: caller is not the owner", async function () {
+    const _tokenAddress = flashTokenContract.address;
+    const _amount = BigNumber.from(100000).mul(multiplier);
+    const _ratio = ethers.utils.parseUnits("0.5", 18);
+
+    await expect(strategyContract.connect(signers[1]).depositReward(_tokenAddress, _amount, _ratio)).to.be.revertedWith(
+      "Ownable: caller is not the owner",
+    );
+  });
+
+  it("account 0 should deposit 100,000 FLASH rewards with a ratio of 0.5", async function () {
+    const _tokenAddress = flashTokenContract.address;
+    const _amount = BigNumber.from(100000).mul(multiplier);
+    const _ratio = ethers.utils.parseUnits("0.5", 18);
+
+    await strategyContract.depositReward(_tokenAddress, _amount, _ratio);
+  });
+
+  it("account 0 should add additional 1,000 FLASH rewards", async function () {
+    const _amount = BigNumber.from(1000).mul(multiplier);
+    await strategyContract.addRewardTokens(_amount);
+  });
+
+  it("account 0 should fail when depositing new reward with error LOCKOUT IN FORCE", async function () {
+    const _tokenAddress = flashTokenContract.address;
+    const _amount = BigNumber.from(1000).mul(multiplier);
+    const _ratio = ethers.utils.parseUnits("0.5", 18);
+
+    await expect(strategyContract.connect(signers[0]).depositReward(_tokenAddress, _amount, _ratio)).to.be.revertedWith(
+      "LOCKOUT IN FORCE",
+    );
+  });
+
+  it("should impersonate account 0xca4ad39f872e89ef23eabd5716363fc22513e147 and transfer 1,000 DAI to account 7", async function () {
+    await hre.network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: ["0xca4ad39f872e89ef23eabd5716363fc22513e147"],
+    });
+    const signer = await hre.ethers.getSigner("0xca4ad39f872e89ef23eabd5716363fc22513e147");
+    const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
+
+    // Connect using the impersonated account and transfer 1,000,000 DAI
+    await daiContract.connect(signer).transfer(signers[7].address, BigNumber.from(1000).mul(multiplier));
+
+    const balance = await daiContract.balanceOf(signers[7].address);
+    expect(balance).gte(BigNumber.from(1000).mul(multiplier));
+  });
+
+  it("should stake 1,000 DAI from account 7 (do not issue NFT) and mint fERC20 tokens", async function () {
+    const _amount = BigNumber.from(1000).mul(multiplier);
+    const _duration = 31536000; // 365 days in seconds
+
+    // Approve the contract for spending
+    const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
+    await daiContract.connect(signers[7]).approve(protocolContract.address, _amount);
+
+    // Perform the stake
+    const result = await protocolContract
+      .connect(signers[7])
+      .stake(strategyContract.address, _amount, _duration, false);
+
+    // Determine how many yield tokens we got back via event
+    let receipt: ContractReceipt = await result.wait();
+    // @ts-ignore
+    const args = (receipt.events?.filter(x => {
+      return x.event == "Staked";
+    }))[0]["args"];
+    // @ts-ignore
+    const fTokenMinted = args["_fTokenMinted"];
+
+    const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
+    expect(await fTokenContract.balanceOf(signers[7].address)).to.be.eq(fTokenMinted);
+    console.log("\tfERC20 tokens minted:", ethers.utils.formatUnits(fTokenMinted, 18));
+  });
+
+  it("account 7 should burn 10 fERC20 tokens and receive 5 FLASH tokens", async function () {
+    const _amountToBurn = BigNumber.from(10).mul(multiplier);
+
+    // Approve the fToken contract for spending
+    const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
+    await fTokenContract.connect(signers[7]).approve(strategyContract.address, _amountToBurn);
+
+    // Burn the fERC20 token against strategy contract to get yield
+    const _minimumReturned = await strategyContract.connect(signers[7]).quoteBurnFToken(_amountToBurn);
+    const result = await strategyContract.connect(signers[7]).burnFToken(_amountToBurn, _minimumReturned);
+
+    // Determine how many yield tokens we got back via event
+    let receipt: ContractReceipt = await result.wait();
+    // @ts-ignore
+    const args = (receipt.events?.filter(x => {
+      return x.event == "BurnedFToken";
+    }))[0]["args"];
+    // @ts-ignore
+    expect(args["_tokenAmount"]).to.be.eq(ethers.utils.parseUnits("10", 18));
+
+    expect(await flashTokenContract.balanceOf(signers[7].address)).to.be.eq(ethers.utils.parseUnits("5", 18));
+  });
+
+  it("account 0 should fail changing ratio to 0.25 with error XXX", async function () {
+    const _ratio = ethers.utils.parseUnits("0.25", 18);
+    await expect(strategyContract.setRewardRatio(_ratio)).to.be.revertedWith("RATIO CAN ONLY BE INCREASED");
+  });
+
+  it("account 0 should increase reward ratio to 0.75", async function () {
+    const _ratio = ethers.utils.parseUnits("0.75", 18);
+    await strategyContract.setRewardRatio(_ratio);
+  });
+
+  it("account 7 should burn 10 fERC20 tokens and receive 7.5 FLASH tokens", async function () {
+    const _amountToBurn = BigNumber.from(10).mul(multiplier);
+
+    // Approve the fToken contract for spending
+    const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
+    await fTokenContract.connect(signers[7]).approve(strategyContract.address, _amountToBurn);
+
+    // Burn the fERC20 token against strategy contract to get yield
+    const _minimumReturned = await strategyContract.connect(signers[7]).quoteBurnFToken(_amountToBurn);
+    const result = await strategyContract.connect(signers[7]).burnFToken(_amountToBurn, _minimumReturned);
+
+    // Determine how many yield tokens we got back via event
+    let receipt: ContractReceipt = await result.wait();
+    // @ts-ignore
+    const args = (receipt.events?.filter(x => {
+      return x.event == "BurnedFToken";
+    }))[0]["args"];
+    // @ts-ignore
+    expect(args["_tokenAmount"]).to.be.eq(ethers.utils.parseUnits("10", 18));
+
+    // Since we already had 5 tokens from the last test, we will get another 7.5 here so total is 12.5
+    expect(await flashTokenContract.balanceOf(signers[7].address)).to.be.eq(ethers.utils.parseUnits("12.5", 18));
+  });
+
+  it("should increment next block timestamp by 3 months", async function () {
+    // Increase the timestamp of the next block
+    const newTs = new Date().getTime() / 1000 + 7257600; // 84 days
+    await hre.network.provider.send("evm_increaseTime", [newTs]);
+    await hre.network.provider.send("evm_mine");
+  });
+
+  it("account 0 should fail setting ratio when lockout period has ended with error LOCKOUT NOT IN FORCE", async function () {
+    const _ratio = ethers.utils.parseUnits("0.1", 18);
+    await expect(strategyContract.setRewardRatio(_ratio)).to.be.revertedWith("LOCKOUT NOT IN FORCE");
+  });
+
+  it("account 0 should deposit 1,000 FLASH @ 1.5 ratio", async function () {
+    // Get the current Flash balance of account 0
+    const oldRewardBalance = await flashTokenContract.balanceOf(signers[0].address);
+
+    // Determine how many reward tokens are in contract that we expect to get back
+    const contractRewardBalance = await strategyContract.rewardTokenBalance();
+
+    const _tokenAddress = flashTokenContract.address;
+    const _amount = BigNumber.from(1000).mul(multiplier);
+    const _ratio = ethers.utils.parseUnits("1.5", 18);
+
+    await strategyContract.depositReward(_tokenAddress, _amount, _ratio);
+
+    // Get the new Flash balance of account 0
+    const newRewardBalance = await flashTokenContract.balanceOf(signers[0].address);
+
+    const expectedBalance = oldRewardBalance.add(contractRewardBalance).sub(_amount);
+
+    expect(newRewardBalance).to.be.eq(expectedBalance);
+  });
+
+  it("account 7 should burn 700 fERC20 tokens and receive 10,000 FLASH tokens", async function () {
+    const _amountToBurn = BigNumber.from(700).mul(multiplier);
+
+    // Approve the fToken contract for spending
+    const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
+    await fTokenContract.connect(signers[7]).approve(strategyContract.address, _amountToBurn);
+
+    // Burn the fERC20 token against strategy contract to get yield
+    const _minimumReturned = await strategyContract.connect(signers[7]).quoteBurnFToken(_amountToBurn);
+    const result = await strategyContract.connect(signers[7]).burnFToken(_amountToBurn, _minimumReturned);
+
+    // Determine how many yield tokens we got back via event
+    let receipt: ContractReceipt = await result.wait();
+    // @ts-ignore
+    const args = (receipt.events?.filter(x => {
+      return x.event == "BurnedFToken";
+    }))[0]["args"];
+    // @ts-ignore
+    expect(args["_tokenAmount"]).to.be.eq(ethers.utils.parseUnits("700", 18));
+
+    // We should get back 1,000 since this is the maximum amount of rewards in the contract
+    // even though the user is eligible for 1,050
+    // since we already have 12 Flash tokens, the total should now be 1012.5
+    expect(await flashTokenContract.balanceOf(signers[7].address)).to.be.eq(ethers.utils.parseUnits("1012.5", 18));
   });
 });
