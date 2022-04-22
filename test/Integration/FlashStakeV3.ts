@@ -142,10 +142,13 @@ describe("Flashstake Tests", function () {
       return x.event == "Staked";
     }))[0]["args"];
     // @ts-ignore
-    const fTokenMinted = args["_fTokenMinted"];
+    const stakeId = args["_stakeId"];
+
+    // Lookup fTokenMinted from the contract
+    const stakeInfo = await protocolContract.getStakeInfo(stakeId, false);
 
     const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
-    expect(await fTokenContract.balanceOf(signers[1].address)).to.be.eq(fTokenMinted);
+    expect(await fTokenContract.balanceOf(signers[1].address)).to.be.eq(stakeInfo.fTokensToUser);
   });
 
   it("should fail when unstaking as account 1 with error STAKE NOT EXPIRED", async function () {
@@ -205,11 +208,14 @@ describe("Flashstake Tests", function () {
       return x.event == "Staked";
     }))[0]["args"];
     // @ts-ignore
-    const fTokenMinted = args["_fTokenMinted"];
+    const stakeId = args["_stakeId"];
+
+    // Lookup fTokenMinted from the contract
+    const stakeInfo = await protocolContract.getStakeInfo(stakeId, false);
 
     const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
-    expect(await fTokenContract.balanceOf(signers[2].address)).to.be.eq(fTokenMinted);
-    expect(fTokenMinted).to.be.eq("2000000001024000000000");
+    expect(await fTokenContract.balanceOf(signers[2].address)).to.be.eq(stakeInfo.fTokensToUser);
+    expect(stakeInfo.fTokensToUser).to.be.eq("2000000001024000000000");
   });
 
   it("should fail when attempting to create NFT for stake that already have an NFT associated", async function () {
@@ -311,16 +317,16 @@ describe("Flashstake Tests", function () {
       return x.event == "Staked";
     }))[0]["args"];
     // @ts-ignore
-    const fTokenMinted = args["_fTokenMinted"];
+    const stakeInfo = await protocolContract.getStakeInfo(args["_stakeId"], false);
 
     console.log("(1) input tokens =", _amount.toString());
     // @ts-ignore
     console.log("(1) stake id =", args["_stakeId"].toString());
     // @ts-ignore
-    console.log("(1) _fTokenMinted =", args["_fTokenMinted"].toString());
+    console.log("(1) _fTokenMinted =", stakeInfo.fTokensToUser.toString());
 
     const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
-    expect(await fTokenContract.balanceOf(signers[3].address)).to.be.eq(fTokenMinted);
+    expect(await fTokenContract.balanceOf(signers[3].address)).to.be.eq(stakeInfo.fTokensToUser);
   });
 
   it("(2) set next block timestamp to 25% into stake", async function () {
@@ -407,9 +413,9 @@ describe("Flashstake Tests", function () {
       return x.event == "Staked";
     }))[0]["args"];
     // @ts-ignore
-    const fTokenMinted = args["_fTokenMinted"];
+    const stakeInfo = await protocolContract.getStakeInfo(args["_stakeId"], false);
 
-    expect(fTokenMinted).to.be.eq("800000000409600000000");
+    expect(stakeInfo.fTokensToUser).to.be.eq("800000000409600000000");
   });
 
   it("should verify total fTokens minted is 1000.000000512000000000, of which 800.0000004096 went to the user and 200.0000001024 to the feeRecipient", async function () {
@@ -467,15 +473,15 @@ describe("Flashstake Tests", function () {
       return x.event == "Staked";
     }))[0]["args"];
     // @ts-ignore
-    const fTokenMinted = args["_fTokenMinted"];
+    const stakeInfo = await protocolContract.getStakeInfo(args["_stakeId"], false);
     // @ts-ignore
     console.log("(1) stake id:", args["_stakeId"].toString());
     // @ts-ignore
-    console.log("(1) _fTokenMinted", args["_fTokenMinted"].toString());
+    console.log("(1) fTokensToUser", stakeInfo.fTokensToUser.toString());
     // @ts-ignore
-    console.log("(1) _fTokenFee:", args["_fTokenFee"].toString());
+    console.log("(1) fTokensFee:", stakeInfo.fTokensFee.toString());
 
-    expect(fTokenMinted).to.be.eq("8000000004096000000000");
+    expect(stakeInfo.fTokensToUser).to.be.eq("8000000004096000000000");
   });
 
   it("should fail when unstaking as account 2 with error NOT OWNER OF STAKE", async function () {
@@ -684,11 +690,14 @@ describe("Flashstake Tests", function () {
       return x.event == "Staked";
     }))[0]["args"];
     // @ts-ignore
-    const fTokenMinted = args["_fTokenMinted"];
+    const stakeId = args["_stakeId"];
+
+    // Lookup fTokenMinted from the contract
+    const stakeInfo = await protocolContract.getStakeInfo(stakeId, false);
 
     const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
-    expect(await fTokenContract.balanceOf(signers[7].address)).to.be.eq(fTokenMinted);
-    console.log("\tfERC20 tokens minted:", ethers.utils.formatUnits(fTokenMinted, 18));
+    expect(await fTokenContract.balanceOf(signers[7].address)).to.be.eq(stakeInfo.fTokensToUser);
+    console.log("\tfERC20 tokens minted:", ethers.utils.formatUnits(stakeInfo.fTokensToUser, 18));
   });
 
   it("account 7 should burn 10 fERC20 tokens and receive 5 FLASH tokens", async function () {

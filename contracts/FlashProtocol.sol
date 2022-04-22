@@ -51,24 +51,8 @@ contract FlashProtocol is Ownable {
         address indexed _principalTokenAddress,
         address indexed _fTokenAddress
     );
-    event Staked(
-        address indexed _staker,
-        address indexed _strategyAddress,
-        uint256 _tokenAmount,
-        uint256 _fTokenMinted,
-        uint256 _fTokenFee,
-        uint256 _stakeId,
-        bool _nftIssued,
-        uint256 _nftId
-    );
-    event Unstaked(
-        address indexed _strategyAddress,
-        bool _isNFT,
-        uint256 _stakeId,
-        bool _unstakedEarly,
-        uint256 _tokensReturned,
-        uint256 _fTokensBurned
-    );
+    event Staked(uint256 _stakeId);
+    event Unstaked(uint256 _stakeId, bool _unstakedEarly, uint256 _tokensReturned, uint256 _fTokensBurned);
     event NFTIssued(uint256 _stakeId, uint256 nftId);
     event NFTRedeemed(uint256 _stakeId, uint256 nftId);
 
@@ -151,16 +135,7 @@ contract FlashProtocol is Ownable {
             issueNFT(stakeId);
         }
 
-        emit Staked(
-            msg.sender,
-            _strategyAddress,
-            principalAfterDeductions,
-            (tokensToMint - fee),
-            fee,
-            stakeId,
-            _issueNFT,
-            stakes[stakeId].nftId
-        );
+        emit Staked(stakeId);
 
         return stakes[stakeId];
     }
@@ -200,7 +175,7 @@ contract FlashProtocol is Ownable {
         // Mark stake as inactive
         stakes[stakeId].active = false;
 
-        emit Unstaked(stakes[stakeId].strategyAddress, _isNFT, _id, false, stakes[stakeId].stakedAmount, 0);
+        emit Unstaked(stakeId, false, stakes[stakeId].stakedAmount, 0);
     }
 
     function issueNFT(uint256 _stakeId) public returns (uint256) {
@@ -271,14 +246,7 @@ contract FlashProtocol is Ownable {
         // Mark stake as inactive
         stakes[stakeId].active = false;
 
-        emit Unstaked(
-            stakes[stakeId].strategyAddress,
-            false,
-            stakeId,
-            true,
-            stakes[stakeId].stakedAmount,
-            fTokenBurnAmount
-        );
+        emit Unstaked(stakeId, false, stakes[stakeId].stakedAmount, fTokenBurnAmount);
     }
 
     function getFTokenAddress(address _strategyAddress) public view returns (address) {
