@@ -13,7 +13,11 @@ interface IFlashStrategy {
 
     // Responsible for instant upfront yield. Takes fERC20 tokens specific to this
     // strategy. The strategy is responsible for returning some amount of principal tokens
-    function burnFToken(uint256 _tokenAmount, uint256 _minimumReturned) external returns (uint256);
+    function burnFToken(
+        uint256 _tokenAmount,
+        uint256 _minimumReturned,
+        address _yieldTo
+    ) external returns (uint256);
 
     // This should return the current total of all principal within the contract
     function getPrincipalBalance() external view returns (uint256);

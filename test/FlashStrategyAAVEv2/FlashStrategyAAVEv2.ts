@@ -169,7 +169,7 @@ describe("FlashStrategyAAVEv2 Tests", function () {
     const quotedAmount = this.flashStrategyAAVEv2Artifact.quoteBurnFToken(burnAmount);
 
     // Perform the burn
-    const result = await this.flashStrategyAAVEv2Artifact.burnFToken(burnAmount, quotedAmount);
+    const result = await this.flashStrategyAAVEv2Artifact.burnFToken(burnAmount, quotedAmount, this.signers[0].address);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
@@ -198,7 +198,7 @@ describe("FlashStrategyAAVEv2 Tests", function () {
     const quotedAmount = this.flashStrategyAAVEv2Artifact.quoteBurnFToken(burnAmount);
 
     // Perform the burn
-    const result = await this.flashStrategyAAVEv2Artifact.burnFToken(burnAmount, quotedAmount);
+    const result = await this.flashStrategyAAVEv2Artifact.burnFToken(burnAmount, quotedAmount, this.signers[0].address);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
@@ -226,7 +226,7 @@ describe("FlashStrategyAAVEv2 Tests", function () {
     const quotedAmount = this.flashStrategyAAVEv2Artifact.quoteBurnFToken(burnAmount);
 
     // Perform the burn
-    const result = await this.flashStrategyAAVEv2Artifact.burnFToken(burnAmount, quotedAmount);
+    const result = await this.flashStrategyAAVEv2Artifact.burnFToken(burnAmount, quotedAmount, this.signers[0].address);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
@@ -530,7 +530,7 @@ describe("FlashStrategyAAVEv2 Bootstrap Tests", function () {
     const quotedAmount = this.flashStrategyAAVEv2Artifact.quoteBurnFToken(burnAmount);
 
     // Perform the burn
-    const result = await this.flashStrategyAAVEv2Artifact.burnFToken(burnAmount, quotedAmount);
+    const result = await this.flashStrategyAAVEv2Artifact.burnFToken(burnAmount, quotedAmount, this.signers[0].address);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
@@ -558,7 +558,7 @@ describe("FlashStrategyAAVEv2 Bootstrap Tests", function () {
     const quotedAmount = this.flashStrategyAAVEv2Artifact.quoteBurnFToken(burnAmount);
 
     // Perform the burn
-    const result = await this.flashStrategyAAVEv2Artifact.burnFToken(burnAmount, quotedAmount);
+    const result = await this.flashStrategyAAVEv2Artifact.burnFToken(burnAmount, quotedAmount, this.signers[0].address);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
@@ -609,7 +609,7 @@ describe("FlashStrategyAAVEv2 Bootstrap Tests", function () {
     const quotedAmount = this.flashStrategyAAVEv2Artifact.quoteBurnFToken(burnAmount);
 
     // Perform the burn
-    const result = await this.flashStrategyAAVEv2Artifact.burnFToken(burnAmount, quotedAmount);
+    const result = await this.flashStrategyAAVEv2Artifact.burnFToken(burnAmount, quotedAmount, this.signers[0].address);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();

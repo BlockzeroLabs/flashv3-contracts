@@ -8,7 +8,7 @@ import "./interfaces/IFlashStrategy.sol";
 import "./FlashNFT.sol";
 import "./interfaces/IERC20C.sol";
 
-contract FlashStakeV3 is Ownable {
+contract FlashProtocol is Ownable {
     using SafeMath for uint256;
 
     // This will store the NFT contract address which will be used to represent Stakes
@@ -303,8 +303,9 @@ contract FlashStakeV3 is Ownable {
         address _strategyAddress,
         uint256 _tokenAmount,
         uint256 _stakeDuration,
+        address _yieldTo,
         bool _issueNFT
-    ) public returns (bool) {
+    ) public {
         // Stake
         uint256 fTokensMinted = stake(_strategyAddress, _tokenAmount, _stakeDuration, _issueNFT).fTokensToUser;
 
@@ -314,12 +315,8 @@ contract FlashStakeV3 is Ownable {
         // Quote, approve, burn
         uint256 quotedReturn = IFlashStrategy(_strategyAddress).quoteBurnFToken(fTokensMinted);
 
+        // Approve, burn and send yield to specified address
         fToken.approve(_strategyAddress, fTokensMinted);
-        uint256 tokensReturned = IFlashStrategy(_strategyAddress).burnFToken(fTokensMinted, quotedReturn);
-
-        // Transfer yield to user
-        IERC20C(strategies[_strategyAddress].principalTokenAddress).transfer(msg.sender, tokensReturned);
-
-        return true;
+        IFlashStrategy(_strategyAddress).burnFToken(fTokensMinted, quotedReturn, _yieldTo);
     }
 }

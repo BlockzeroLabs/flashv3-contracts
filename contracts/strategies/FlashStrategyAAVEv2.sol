@@ -136,7 +136,11 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         return (totalYield * ((_tokenAmount * _tokenAmount) / totalSupply)) / _tokenAmount;
     }
 
-    function burnFToken(uint256 _tokenAmount, uint256 _minimumReturned) external returns (uint256) {
+    function burnFToken(
+        uint256 _tokenAmount,
+        uint256 _minimumReturned,
+        address _yieldTo
+    ) external returns (uint256) {
         // Calculate how much yield to give back
         uint256 tokensOwed = quoteBurnFToken(_tokenAmount);
         require(tokensOwed >= _minimumReturned, "INSUFFICIENT OUTPUT");
@@ -150,18 +154,18 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         // Can we pay all of this yield via the bootstrapped tokens
         uint256 bootstrapBalance = IERC20C(principalTokenAddress).balanceOf(address(this));
         if (bootstrapBalance >= tokensOwed) {
-            IERC20C(principalTokenAddress).transfer(msg.sender, tokensOwed);
+            IERC20C(principalTokenAddress).transfer(_yieldTo, tokensOwed);
         } else {
             uint256 amountToWithdraw = remainderSubtract(tokensOwed, bootstrapBalance);
             uint256 bootstrapPayment = tokensOwed - amountToWithdraw;
 
             withdrawYield(amountToWithdraw);
-            IERC20C(principalTokenAddress).transfer(msg.sender, (amountToWithdraw + bootstrapPayment));
+            IERC20C(principalTokenAddress).transfer(_yieldTo, (amountToWithdraw + bootstrapPayment));
         }
 
         // Distribute rewards if there is a reward balance within contract
         if (rewardTokenBalance > 0) {
-            claimReward(_tokenAmount);
+            claimReward(_tokenAmount, _yieldTo);
         }
 
         emit BurnedFToken(msg.sender, _tokenAmount, tokensOwed);
@@ -232,11 +236,11 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         return rewardAmount;
     }
 
-    function claimReward(uint256 _fERC20Burned) internal {
+    function claimReward(uint256 _fERC20Burned, address _yieldTo) internal {
         uint256 rewardAmount = quoteReward(_fERC20Burned);
 
         // Transfer and update balance locally
-        IERC20C(rewardTokenAddress).transfer(msg.sender, rewardAmount);
+        IERC20C(rewardTokenAddress).transfer(_yieldTo, rewardAmount);
         rewardTokenBalance = rewardTokenBalance - rewardAmount;
 
         emit RewardClaimed(rewardTokenAddress, msg.sender);

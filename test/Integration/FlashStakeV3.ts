@@ -1,6 +1,6 @@
 import hre from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import { FlashNFT, FlashStakeV3, FlashStrategyAAVEv2, FlashToken } from "../../typechain";
+import { FlashNFT, FlashProtocol, FlashStrategyAAVEv2, FlashToken } from "../../typechain";
 import { Artifact } from "hardhat/types";
 import { expect } from "chai";
 import { BigNumber, ContractReceipt, ethers } from "ethers";
@@ -13,7 +13,7 @@ describe("Flashstake Tests", function () {
   let interestBearingTokenAddress = "0xdCf0aF9e59C002FA3AA091a46196b37530FD48a8";
   let fTokenAddress: string;
 
-  let protocolContract: FlashStakeV3;
+  let protocolContract: FlashProtocol;
   let strategyContract: FlashStrategyAAVEv2;
   let flashTokenContract: FlashToken;
 
@@ -27,8 +27,8 @@ describe("Flashstake Tests", function () {
     const nftContract = <FlashNFT>await deployContract(signers[0], nftArtifact);
 
     // 1. Deploy the Flash Protocol contract
-    const protocolArtifact: Artifact = await hre.artifacts.readArtifact("FlashStakeV3");
-    protocolContract = <FlashStakeV3>await deployContract(signers[0], protocolArtifact, [nftContract.address]);
+    const protocolArtifact: Artifact = await hre.artifacts.readArtifact("FlashProtocol");
+    protocolContract = <FlashProtocol>await deployContract(signers[0], protocolArtifact, [nftContract.address]);
     await nftContract.transferOwnership(protocolContract.address);
 
     // 2. Deploy the Flash AAVEv2 Strategy
@@ -597,7 +597,9 @@ describe("Flashstake Tests", function () {
     const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
     await fTokenContract.connect(signers[6]).approve(protocolContract.address, BigNumber.from(1000000).mul(multiplier));
 
-    await protocolContract.connect(signers[6]).flashStake(strategyContract.address, _amount, _duration, false);
+    await protocolContract
+      .connect(signers[6])
+      .flashStake(strategyContract.address, _amount, _duration, signers[6].address, false);
     expect(await daiContract.balanceOf(signers[6].address)).to.be.gt(0);
 
     // Since the initial 1000 DAI was staked, it is no longer in the wallet. Once burning the fDAI, we expect there to
@@ -698,7 +700,9 @@ describe("Flashstake Tests", function () {
 
     // Burn the fERC20 token against strategy contract to get yield
     const _minimumReturned = await strategyContract.connect(signers[7]).quoteBurnFToken(_amountToBurn);
-    const result = await strategyContract.connect(signers[7]).burnFToken(_amountToBurn, _minimumReturned);
+    const result = await strategyContract
+      .connect(signers[7])
+      .burnFToken(_amountToBurn, _minimumReturned, signers[7].address);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
@@ -731,7 +735,9 @@ describe("Flashstake Tests", function () {
 
     // Burn the fERC20 token against strategy contract to get yield
     const _minimumReturned = await strategyContract.connect(signers[7]).quoteBurnFToken(_amountToBurn);
-    const result = await strategyContract.connect(signers[7]).burnFToken(_amountToBurn, _minimumReturned);
+    const result = await strategyContract
+      .connect(signers[7])
+      .burnFToken(_amountToBurn, _minimumReturned, signers[7].address);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
@@ -779,8 +785,12 @@ describe("Flashstake Tests", function () {
     expect(newRewardBalance).to.be.eq(expectedBalance);
   });
 
-  it("account 7 should burn 700 fERC20 tokens and receive 10,000 FLASH tokens", async function () {
+  it("account 7 should burn 700 fERC20 tokens and receive 10,000 FLASH tokens at account 8", async function () {
     const _amountToBurn = BigNumber.from(700).mul(multiplier);
+
+    // Account 8 should have no principal tokens
+    const principalTokenContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
+    expect(await principalTokenContract.balanceOf(signers[8].address)).to.be.eq(0);
 
     // Approve the fToken contract for spending
     const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
@@ -788,7 +798,9 @@ describe("Flashstake Tests", function () {
 
     // Burn the fERC20 token against strategy contract to get yield
     const _minimumReturned = await strategyContract.connect(signers[7]).quoteBurnFToken(_amountToBurn);
-    const result = await strategyContract.connect(signers[7]).burnFToken(_amountToBurn, _minimumReturned);
+    const result = await strategyContract
+      .connect(signers[7])
+      .burnFToken(_amountToBurn, _minimumReturned, signers[8].address);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
@@ -802,6 +814,9 @@ describe("Flashstake Tests", function () {
     // We should get back 1,000 since this is the maximum amount of rewards in the contract
     // even though the user is eligible for 1,050
     // since we already have 12 Flash tokens, the total should now be 1012.5
-    expect(await flashTokenContract.balanceOf(signers[7].address)).to.be.eq(ethers.utils.parseUnits("1012.5", 18));
+    expect(await flashTokenContract.balanceOf(signers[8].address)).to.be.eq(ethers.utils.parseUnits("1000", 18));
+
+    // We would have also got back some principal tokens
+    expect(await principalTokenContract.balanceOf(signers[8].address)).to.be.gt(0);
   });
 });
