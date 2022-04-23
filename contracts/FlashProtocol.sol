@@ -229,7 +229,8 @@ contract FlashProtocol is Ownable {
         require(stakes[stakeId].stakeDuration - secondsLeft >= 60, "MINIMUM STAKE DURATION IS 60 SECONDS");
 
         uint256 percentageToBurn = (secondsLeft * (10**18)) / stakes[stakeId].stakeDuration;
-        uint256 fTokenBurnAmount = (stakes[stakeId].fTokensToUser * percentageToBurn) / (10**18);
+        uint256 fTokenBurnAmount = ((stakes[stakeId].fTokensToUser + stakes[stakeId].fTokensFee) * percentageToBurn) /
+            (10**18);
 
         // Burn these fTokens
         FlashFToken(getFTokenAddress(stakes[stakeId].strategyAddress)).burnFrom(msg.sender, fTokenBurnAmount);

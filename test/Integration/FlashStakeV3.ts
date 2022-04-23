@@ -554,7 +554,7 @@ describe("Flashstake Tests", function () {
     await hre.network.provider.send("evm_setNextBlockTimestamp", [newTs.toNumber()]);
   });
 
-  it("should unstake early from account 5 (using NFT) and burn 4000.000002048 fTokens", async function () {
+  it("should unstake early from account 5 (using NFT) and burn 5000.00000256 fTokens", async function () {
     // Approve the fToken contract for spending
     const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
     await fTokenContract.connect(signers[5]).approve(protocolContract.address, BigNumber.from(1000000).mul(multiplier));
@@ -571,7 +571,7 @@ describe("Flashstake Tests", function () {
     // @ts-ignore
     expect(args["_tokensReturned"]).to.be.eq(BigNumber.from(10000).mul(multiplier));
     // @ts-ignore
-    expect(args["_fTokensBurned"]).to.be.eq("4000000002048000000000");
+    expect(args["_fTokensBurned"]).to.be.eq("5000000002560000000000");
   });
 
   it("should impersonate account 0xca4ad39f872e89ef23eabd5716363fc22513e147 and transfer 1,000 DAI to account 6", async function () {
