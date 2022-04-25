@@ -272,11 +272,10 @@ contract FlashProtocol is Ownable {
         address _strategyAddress,
         uint256 _tokenAmount,
         uint256 _stakeDuration,
-        address _yieldTo,
-        bool _issueNFT
+        address _yieldTo
     ) public {
         // Stake
-        uint256 fTokensMinted = stake(_strategyAddress, _tokenAmount, _stakeDuration, _issueNFT).fTokensToUser;
+        uint256 fTokensMinted = stake(_strategyAddress, _tokenAmount, _stakeDuration, false).fTokensToUser;
 
         FlashFToken fToken = FlashFToken(strategies[_strategyAddress].fTokenAddress);
         fToken.transferFrom(msg.sender, address(this), fTokensMinted);
