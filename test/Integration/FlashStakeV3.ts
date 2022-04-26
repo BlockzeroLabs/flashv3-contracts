@@ -589,7 +589,7 @@ describe("Flashstake Tests", function () {
     expect(balance).gte(BigNumber.from(1000).mul(multiplier));
   });
 
-  it("account 6 should flashstake 1000 DAI", async function () {
+  it("account 6 should flashstake 1000 DAI and wallet DAI balance is > 0", async function () {
     const _amount = BigNumber.from(1000).mul(multiplier);
     const _duration = 63072000;
 
@@ -605,7 +605,7 @@ describe("Flashstake Tests", function () {
 
     await protocolContract
       .connect(signers[6])
-      .flashStake(strategyContract.address, _amount, _duration, signers[6].address);
+      .flashStake(strategyContract.address, _amount, _duration, signers[6].address, false);
     expect(await daiContract.balanceOf(signers[6].address)).to.be.gt(0);
 
     // Since the initial 1000 DAI was staked, it is no longer in the wallet. Once burning the fDAI, we expect there to
