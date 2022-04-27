@@ -2,16 +2,22 @@
 pragma solidity ^0.8.4;
 
 interface IFlashStrategy {
-
     // This is how principal will be deposited into the contract
-    function depositPrincipal(uint256 _tokenAmount) external;
+    // The Flash protocol allows the strategy to specify how much
+    // should be registered. This allows the strategy to manipulate (eg take fee)
+    // on the principal if the strategy requires
+    function depositPrincipal(uint256 _tokenAmount) external returns (uint256);
 
     // This is how principal will be returned from the contract
     function withdrawPrincipal(uint256 _tokenAmount) external;
 
     // Responsible for instant upfront yield. Takes fERC20 tokens specific to this
     // strategy. The strategy is responsible for returning some amount of principal tokens
-    function burnFToken(uint256 _tokenAmount, uint256 _minimumReturned) external returns (uint256);
+    function burnFToken(
+        uint256 _tokenAmount,
+        uint256 _minimumReturned,
+        address _yieldTo
+    ) external returns (uint256);
 
     // This should return the current total of all principal within the contract
     function getPrincipalBalance() external view returns (uint256);

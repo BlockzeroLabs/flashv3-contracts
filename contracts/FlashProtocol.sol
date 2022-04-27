@@ -8,8 +8,7 @@ import "./interfaces/IFlashStrategy.sol";
 import "./FlashNFT.sol";
 import "./interfaces/IERC20C.sol";
 
-contract FlashStakeV3 is Ownable {
-
+contract FlashProtocol is Ownable {
     using SafeMath for uint256;
 
     // This will store the NFT contract address which will be used to represent Stakes
@@ -47,23 +46,26 @@ contract FlashStakeV3 is Ownable {
     mapping(uint256 => StakeStruct) public stakes;
 
     // Define events
-    event StrategyRegistered(address indexed _strategyAddress, address indexed _principalTokenAddress, address indexed _fTokenAddress);
-    event Staked(address indexed _staker, address indexed _strategyAddress, uint256 _tokenAmount, uint256 _fTokenMinted, uint256 _fTokenFee, uint256 _stakeId, bool _nftIssued, uint256 _nftId);
-    event Unstaked(address indexed _strategyAddress, bool _isNFT, uint256 _stakeId, bool _unstakedEarly, uint256 _tokensReturned, uint256 _fTokensBurned);
+    event StrategyRegistered(
+        address indexed _strategyAddress,
+        address indexed _principalTokenAddress,
+        address indexed _fTokenAddress
+    );
+    event Staked(uint256 _stakeId);
+    event Unstaked(uint256 _stakeId, bool _unstakedEarly, uint256 _tokensReturned, uint256 _fTokensBurned);
     event NFTIssued(uint256 _stakeId, uint256 nftId);
     event NFTRedeemed(uint256 _stakeId, uint256 nftId);
 
-    constructor() public {
-        // Deploy NFT which will represent Stakes and store the address
-        FlashNFT flashNFT = new FlashNFT();
-        flashNFTAddress = address(flashNFT);
+    constructor(address _flashNFTAddress) public {
+        flashNFTAddress = _flashNFTAddress;
     }
 
-    function getFlashNFTAddress() public view returns(address) {
-        return flashNFTAddress;
-    }
-
-    function registerStrategy(address _strategyAddress, address _principalTokenAddress, string memory _fTokenName, string memory _fTokenSymbol) public returns (StrategyInformation memory) {
+    function registerStrategy(
+        address _strategyAddress,
+        address _principalTokenAddress,
+        string memory _fTokenName,
+        string memory _fTokenSymbol
+    ) public returns (StrategyInformation memory) {
         require(strategies[_strategyAddress].principalTokenAddress == address(0), "STRATEGY ALREADY REGISTERED");
 
         FlashFToken flashFToken = new FlashFToken(_fTokenName, _fTokenSymbol);
@@ -91,13 +93,17 @@ contract FlashStakeV3 is Ownable {
         require(_stakeDuration <= IFlashStrategy(_strategyAddress).getMaxStakeDuration(), "EXCEEDS MAX STAKE DURATION");
 
         // Transfer the tokens from caller to the strategy contract
-        IERC20C(strategies[_strategyAddress].principalTokenAddress).transferFrom(msg.sender, address(_strategyAddress), _tokenAmount);
+        IERC20C(strategies[_strategyAddress].principalTokenAddress).transferFrom(
+            msg.sender,
+            address(_strategyAddress),
+            _tokenAmount
+        );
 
         // Determine how many fERC20 tokens to mint (ask strategy)
         uint256 tokensToMint = IFlashStrategy(_strategyAddress).quoteMintFToken(_tokenAmount, _stakeDuration);
 
         // Deposit into the strategy
-        IFlashStrategy(_strategyAddress).depositPrincipal(_tokenAmount);
+        uint256 principalAfterDeductions = IFlashStrategy(_strategyAddress).depositPrincipal(_tokenAmount);
 
         // Calculate fee and if this is more than 0, transfer fee
         uint256 fee = (tokensToMint * globalMintFee) / 10000;
@@ -115,7 +121,7 @@ contract FlashStakeV3 is Ownable {
         stakes[stakeId].strategyAddress = _strategyAddress;
         stakes[stakeId].stakeStartTs = block.timestamp;
         stakes[stakeId].stakeDuration = _stakeDuration;
-        stakes[stakeId].stakedAmount = _tokenAmount;
+        stakes[stakeId].stakedAmount = principalAfterDeductions;
         stakes[stakeId].fTokensToUser = (tokensToMint - fee);
         stakes[stakeId].fTokensFee = fee;
         stakes[stakeId].active = true;
@@ -125,7 +131,7 @@ contract FlashStakeV3 is Ownable {
             issueNFT(stakeId);
         }
 
-        emit Staked(msg.sender, _strategyAddress, _tokenAmount, (tokensToMint - fee), fee, stakeId, _issueNFT, stakes[stakeId].nftId);
+        emit Staked(stakeId);
 
         return stakes[stakeId];
     }
@@ -151,10 +157,7 @@ contract FlashStakeV3 is Ownable {
         }
 
         require(stakes[stakeId].active == true, "STAKE NON-EXISTENT");
-        require(
-            block.timestamp > (stakes[stakeId].stakeStartTs + stakes[stakeId].stakeDuration),
-            "STAKE NOT EXPIRED"
-        );
+        require(block.timestamp > (stakes[stakeId].stakeStartTs + stakes[stakeId].stakeDuration), "STAKE NOT EXPIRED");
 
         // Remove tokens from Strategy
         IFlashStrategy(stakes[stakeId].strategyAddress).withdrawPrincipal(stakes[stakeId].stakedAmount);
@@ -168,7 +171,7 @@ contract FlashStakeV3 is Ownable {
         // Mark stake as inactive
         stakes[stakeId].active = false;
 
-        emit Unstaked(stakes[stakeId].strategyAddress, _isNFT, _id, false, stakes[stakeId].stakedAmount, 0);
+        emit Unstaked(stakeId, false, stakes[stakeId].stakedAmount, 0);
     }
 
     function issueNFT(uint256 _stakeId) public returns (uint256) {
@@ -180,7 +183,7 @@ contract FlashStakeV3 is Ownable {
         uint256 nftId = FlashNFT(flashNFTAddress).mint(msg.sender);
 
         // Store the NFT ID
-        stakes[stakeCount].nftId = nftId;
+        stakes[_stakeId].nftId = nftId;
 
         // Update the NFT Mapping so we can look it up later
         nftIdMappingsToStakeIds[nftId] = _stakeId;
@@ -222,7 +225,8 @@ contract FlashStakeV3 is Ownable {
         require(stakes[stakeId].stakeDuration - secondsLeft >= 60, "MINIMUM STAKE DURATION IS 60 SECONDS");
 
         uint256 percentageToBurn = (secondsLeft * (10**18)) / stakes[stakeId].stakeDuration;
-        uint256 fTokenBurnAmount = (stakes[stakeId].fTokensToUser * percentageToBurn) / (10**18);
+        uint256 fTokenBurnAmount = ((stakes[stakeId].fTokensToUser + stakes[stakeId].fTokensFee) * percentageToBurn) /
+            (10**18);
 
         // Burn these fTokens
         FlashFToken(getFTokenAddress(stakes[stakeId].strategyAddress)).burnFrom(msg.sender, fTokenBurnAmount);
@@ -239,16 +243,16 @@ contract FlashStakeV3 is Ownable {
         // Mark stake as inactive
         stakes[stakeId].active = false;
 
-        emit Unstaked(stakes[stakeId].strategyAddress, false, stakeId, true, stakes[stakeId].stakedAmount, fTokenBurnAmount);
+        emit Unstaked(stakeId, false, stakes[stakeId].stakedAmount, fTokenBurnAmount);
     }
 
-    function getFTokenAddress(address _strategyAddress) public view returns(address) {
+    function getFTokenAddress(address _strategyAddress) public view returns (address) {
         require(strategies[_strategyAddress].principalTokenAddress != address(0), "UNREGISTERED STRATEGY");
 
         return strategies[_strategyAddress].fTokenAddress;
     }
 
-    function getStakeInfo(uint256 _id, bool _isNFT) public view returns(StakeStruct memory) {
+    function getStakeInfo(uint256 _id, bool _isNFT) public view returns (StakeStruct memory) {
         uint256 stakeId;
         if (_isNFT) {
             stakeId = nftIdMappingsToStakeIds[_id];
@@ -258,5 +262,26 @@ contract FlashStakeV3 is Ownable {
         }
 
         return stakes[stakeId];
+    }
+
+    function flashStake(
+        address _strategyAddress,
+        uint256 _tokenAmount,
+        uint256 _stakeDuration,
+        address _yieldTo,
+        bool _mintNFT
+    ) public {
+        // Stake
+        uint256 fTokensMinted = stake(_strategyAddress, _tokenAmount, _stakeDuration, _mintNFT).fTokensToUser;
+
+        FlashFToken fToken = FlashFToken(strategies[_strategyAddress].fTokenAddress);
+        fToken.transferFrom(msg.sender, address(this), fTokensMinted);
+
+        // Quote, approve, burn
+        uint256 quotedReturn = IFlashStrategy(_strategyAddress).quoteBurnFToken(fTokensMinted);
+
+        // Approve, burn and send yield to specified address
+        fToken.approve(_strategyAddress, fTokensMinted);
+        IFlashStrategy(_strategyAddress).burnFToken(fTokensMinted, quotedReturn, _yieldTo);
     }
 }
