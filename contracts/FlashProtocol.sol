@@ -60,10 +60,6 @@ contract FlashProtocol is Ownable {
         flashNFTAddress = _flashNFTAddress;
     }
 
-    function getFlashNFTAddress() public view returns (address) {
-        return flashNFTAddress;
-    }
-
     function registerStrategy(
         address _strategyAddress,
         address _principalTokenAddress,

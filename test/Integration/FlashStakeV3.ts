@@ -223,7 +223,7 @@ describe("Flashstake Tests", function () {
   });
 
   it("should transfer NFT 1 from account 2 to account 3", async function () {
-    const nftAddress = await protocolContract.getFlashNFTAddress();
+    const nftAddress = await protocolContract.flashNFTAddress();
     const flashNFTContract = await hre.ethers.getContractAt("FlashNFT", nftAddress);
 
     expect(await flashNFTContract.ownerOf(1)).to.be.eq(signers[2].address);
@@ -508,7 +508,7 @@ describe("Flashstake Tests", function () {
     console.log("(2) nft id", args["nftId"].toString());
 
     // Ensure this NFT is in the users wallet
-    const nftContract = await hre.ethers.getContractAt("FlashNFT", await protocolContract.getFlashNFTAddress());
+    const nftContract = await hre.ethers.getContractAt("FlashNFT", await protocolContract.flashNFTAddress());
     expect(await nftContract.ownerOf(2)).to.be.eq(signers[5].address);
   });
 
