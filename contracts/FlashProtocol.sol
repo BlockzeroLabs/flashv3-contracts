@@ -187,7 +187,7 @@ contract FlashProtocol is Ownable {
         uint256 nftId = FlashNFT(flashNFTAddress).mint(msg.sender);
 
         // Store the NFT ID
-        stakes[stakeCount].nftId = nftId;
+        stakes[_stakeId].nftId = nftId;
 
         // Update the NFT Mapping so we can look it up later
         nftIdMappingsToStakeIds[nftId] = _stakeId;
