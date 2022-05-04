@@ -49,7 +49,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         IERC20C(principalTokenAddress).approve(lendingPoolAddress, 2**256 - 1);
     }
 
-    function depositPrincipal(uint256 _tokenAmount) public onlyFlashProtocol returns (uint256) {
+    function depositPrincipal(uint256 _tokenAmount) public override onlyFlashProtocol returns (uint256) {
         // Register how much we are depositing
         principalBalance = principalBalance + _tokenAmount;
 
@@ -67,7 +67,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         require(aTokenBalance >= getPrincipalBalance(), "PRINCIPAL BALANCE INVALID");
     }
 
-    function withdrawPrincipal(uint256 _tokenAmount) public onlyFlashProtocol {
+    function withdrawPrincipal(uint256 _tokenAmount) public override onlyFlashProtocol {
         // Withdraw from AAVE
         ILendingPool(lendingPoolAddress).withdraw(principalTokenAddress, _tokenAmount, address(this));
 
@@ -89,18 +89,18 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         }
     }
 
-    function getPrincipalBalance() public view returns (uint256) {
+    function getPrincipalBalance() public view override returns (uint256) {
         return principalBalance;
     }
 
-    function getYieldBalance() public view returns (uint256) {
+    function getYieldBalance() public view override returns (uint256) {
         uint256 interestBearingTokenBalance = IERC20C(interestBearingTokenAddress).balanceOf(address(this));
         uint256 principalBootstrapBalance = IERC20C(principalTokenAddress).balanceOf(address(this));
 
         return (interestBearingTokenBalance - getPrincipalBalance()) + principalBootstrapBalance;
     }
 
-    function getPrincipalAddress() public view returns (address) {
+    function getPrincipalAddress() public view override returns (address) {
         return principalTokenAddress;
     }
 
@@ -108,12 +108,12 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         return fTokenAddress;
     }
 
-    function setFTokenAddress(address _fTokenAddress) public onlyFlashProtocol {
+    function setFTokenAddress(address _fTokenAddress) public override onlyFlashProtocol {
         require(fTokenAddress == address(0), "FTOKEN ADDRESS ALREADY SET");
         fTokenAddress = _fTokenAddress;
     }
 
-    function quoteMintFToken(uint256 _tokenAmount, uint256 _duration) public view returns (uint256) {
+    function quoteMintFToken(uint256 _tokenAmount, uint256 _duration) public view override returns (uint256) {
         // Enforce minimum _duration
         require(_duration >= 60, "DURATION TOO LOW");
 
@@ -125,7 +125,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         return amountToMint;
     }
 
-    function quoteBurnFToken(uint256 _tokenAmount) public view returns (uint256) {
+    function quoteBurnFToken(uint256 _tokenAmount) public view override returns (uint256) {
         uint256 totalSupply = IERC20C(fTokenAddress).totalSupply();
         require(totalSupply > 0, "INSUFFICIENT fERC20 TOKEN SUPPLY");
 
@@ -140,7 +140,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         uint256 _tokenAmount,
         uint256 _minimumReturned,
         address _yieldTo
-    ) external returns (uint256) {
+    ) external override returns (uint256) {
         // Calculate how much yield to give back
         uint256 tokensOwed = quoteBurnFToken(_tokenAmount);
         require(tokensOwed >= _minimumReturned, "INSUFFICIENT OUTPUT");
@@ -183,7 +183,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         _;
     }
 
-    function getMaxStakeDuration() public view returns (uint256) {
+    function getMaxStakeDuration() public view override returns (uint256) {
         return 63072000; // Static 720 days (2 years)
     }
 
