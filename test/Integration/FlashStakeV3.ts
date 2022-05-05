@@ -91,9 +91,9 @@ describe("Flashstake Tests", function () {
 
   it("should fail staking 1,000 DAI from account 1 into unregistered strategy with error UNREGISTERED STRATEGY", async function () {
     // We are specifying a strategy address which is unregistered (protocolContract.address)
-    await expect(protocolContract.connect(signers[1]).stake(protocolContract.address, 1, 1, false)).to.be.revertedWith(
-      "UNREGISTERED STRATEGY",
-    );
+    await expect(
+      protocolContract.connect(signers[1]).stake(protocolContract.address, 1, 1, signers[1].address, false),
+    ).to.be.revertedWith("UNREGISTERED STRATEGY");
   });
 
   it("should fail when staking for 59 seconds with error MINIMUM STAKE DURATION IS 60 SECONDS", async function () {
@@ -105,7 +105,9 @@ describe("Flashstake Tests", function () {
     await daiContract.connect(signers[1]).approve(protocolContract.address, _amount);
 
     await expect(
-      protocolContract.connect(signers[1]).stake(strategyContract.address, _amount, _duration, false),
+      protocolContract
+        .connect(signers[1])
+        .stake(strategyContract.address, _amount, _duration, signers[1].address, false),
     ).to.be.revertedWith("MINIMUM STAKE DURATION IS 60 SECONDS");
   });
 
@@ -118,7 +120,9 @@ describe("Flashstake Tests", function () {
     await daiContract.connect(signers[1]).approve(protocolContract.address, _amount);
 
     await expect(
-      protocolContract.connect(signers[1]).stake(strategyContract.address, _amount, _duration, false),
+      protocolContract
+        .connect(signers[1])
+        .stake(strategyContract.address, _amount, _duration, signers[1].address, false),
     ).to.be.revertedWith("EXCEEDS MAX STAKE DURATION");
   });
 
@@ -133,7 +137,7 @@ describe("Flashstake Tests", function () {
     // Perform the stake
     const result = await protocolContract
       .connect(signers[1])
-      .stake(strategyContract.address, _amount, _duration, false);
+      .stake(strategyContract.address, _amount, _duration, signers[1].address, false);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
@@ -199,7 +203,9 @@ describe("Flashstake Tests", function () {
     await daiContract.connect(signers[2]).approve(protocolContract.address, _amount);
 
     // Perform the stake
-    const result = await protocolContract.connect(signers[2]).stake(strategyContract.address, _amount, _duration, true);
+    const result = await protocolContract
+      .connect(signers[2])
+      .stake(strategyContract.address, _amount, _duration, signers[2].address, true);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
@@ -308,7 +314,7 @@ describe("Flashstake Tests", function () {
     // Perform the stake
     const result = await protocolContract
       .connect(signers[3])
-      .stake(strategyContract.address, _amount, _duration, false);
+      .stake(strategyContract.address, _amount, _duration, signers[3].address, false);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
@@ -404,7 +410,7 @@ describe("Flashstake Tests", function () {
     // Perform the stake
     const result = await protocolContract
       .connect(signers[4])
-      .stake(strategyContract.address, _amount, _duration, false);
+      .stake(strategyContract.address, _amount, _duration, signers[4].address, false);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
@@ -464,7 +470,7 @@ describe("Flashstake Tests", function () {
     // Perform the stake
     const result = await protocolContract
       .connect(signers[5])
-      .stake(strategyContract.address, _amount, _duration, false);
+      .stake(strategyContract.address, _amount, _duration, signers[5].address, false);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
@@ -681,7 +687,7 @@ describe("Flashstake Tests", function () {
     // Perform the stake
     const result = await protocolContract
       .connect(signers[7])
-      .stake(strategyContract.address, _amount, _duration, false);
+      .stake(strategyContract.address, _amount, _duration, signers[7].address, false);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();

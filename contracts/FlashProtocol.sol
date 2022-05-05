@@ -85,6 +85,7 @@ contract FlashProtocol is Ownable {
         address _strategyAddress,
         uint256 _tokenAmount,
         uint256 _stakeDuration,
+        address _fTokensTo,
         bool _issueNFT
     ) public returns (StakeStruct memory) {
         require(strategies[_strategyAddress].principalTokenAddress != address(0), "UNREGISTERED STRATEGY");
@@ -112,7 +113,7 @@ contract FlashProtocol is Ownable {
         }
 
         // Mint fERC20 tokens to the user
-        FlashFToken(strategies[_strategyAddress].fTokenAddress).mint(msg.sender, (tokensToMint - fee));
+        FlashFToken(strategies[_strategyAddress].fTokenAddress).mint(_fTokensTo, (tokensToMint - fee));
 
         // Save the stake details
         stakeCount = stakeCount + 1;
@@ -272,7 +273,7 @@ contract FlashProtocol is Ownable {
         bool _mintNFT
     ) public {
         // Stake
-        uint256 fTokensMinted = stake(_strategyAddress, _tokenAmount, _stakeDuration, _mintNFT).fTokensToUser;
+        uint256 fTokensMinted = stake(_strategyAddress, _tokenAmount, _stakeDuration, _yieldTo, _mintNFT).fTokensToUser;
 
         FlashFToken fToken = FlashFToken(strategies[_strategyAddress].fTokenAddress);
         fToken.transferFrom(msg.sender, address(this), fTokensMinted);
