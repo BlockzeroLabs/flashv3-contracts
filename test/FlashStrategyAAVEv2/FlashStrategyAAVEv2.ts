@@ -10,6 +10,7 @@ const { deployContract } = hre.waffle;
 describe("FlashStrategyAAVEv2 Tests", function () {
   // This is the Kovan DAI address to be used with AAVE
   let principalTokenAddress = "0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD";
+  let yieldTokenAddress = "0xdCf0aF9e59C002FA3AA091a46196b37530FD48a8";
 
   const multiplier = BigNumber.from(10).pow(18);
 
@@ -32,7 +33,7 @@ describe("FlashStrategyAAVEv2 Tests", function () {
       await deployContract(this.signers.admin, flashStrategyAAVEv2Artifact, [
         "0xE0fBa4Fc209b4948668006B2bE61711b7f465bAe",
         principalTokenAddress,
-        "0xdCf0aF9e59C002FA3AA091a46196b37530FD48a8",
+        yieldTokenAddress,
         flashProtocolAddress,
       ])
     );
@@ -345,7 +346,7 @@ describe("FlashStrategyAAVEv2 Tests", function () {
     expect(await erc20TokenContract.balanceOf(this.signers[0].address)).to.be.eq(BigNumber.from(100).mul(multiplier));
 
     // Attempt to withdraw interest bearing token as owner (should revert)
-    const tokensToWithdraw2 = ["0xdCf0aF9e59C002FA3AA091a46196b37530FD48a8"];
+    const tokensToWithdraw2 = [yieldTokenAddress];
     const amountsToWithdraw2 = [BigNumber.from(100).mul(multiplier)];
 
     await hre.network.provider.request({
@@ -358,10 +359,9 @@ describe("FlashStrategyAAVEv2 Tests", function () {
     await aDaiContract
       .connect(this.signers[0])
       .transfer(this.flashStrategyAAVEv2Artifact.address, amountsToWithdraw2[0]);
-    expect(await aDaiContract.balanceOf(this.flashStrategyAAVEv2Artifact.address)).to.be.eq(amountsToWithdraw2[0]);
 
     await expect(
-      this.flashStrategyAAVEv2Artifact.connect(this.signers[0]).withdrawERC20(tokensToWithdraw2, amountsToWithdraw),
+      this.flashStrategyAAVEv2Artifact.connect(this.signers[0]).withdrawERC20(tokensToWithdraw2, amountsToWithdraw2),
     ).to.be.revertedWith("TOKEN ADDRESS PROHIBITED");
   });
 
@@ -374,272 +374,22 @@ describe("FlashStrategyAAVEv2 Tests", function () {
     ).to.be.revertedWith("ARRAY SIZE MISMATCH");
   });
 
-  it("should deposit 10,000 DAI as bootstrap balance", async function () {
-    const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
-    await daiContract
-      .connect(this.signers[0])
-      .transfer(this.flashStrategyAAVEv2Artifact.address, BigNumber.from(10000).mul(multiplier));
-    expect(await daiContract.balanceOf(this.flashStrategyAAVEv2Artifact.address)).to.be.eq(
-      BigNumber.from(10000).mul(multiplier),
-    );
-  });
-});
+  it("deposit 10,000 aDAI and ensure yield balance increases by 10,000", async function () {
+    const _amount = BigNumber.from(10000).mul(multiplier);
+    const yieldBalanceBefore = await this.flashStrategyAAVEv2Artifact.getYieldBalance();
 
-describe("FlashStrategyAAVEv2 Bootstrap Tests", function () {
-  // This is the Kovan DAI address to be used with AAVE
-  let principalTokenAddress = "0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD";
-  let interestBearingTokenAddress = "0xdCf0aF9e59C002FA3AA091a46196b37530FD48a8";
-
-  const multiplier = BigNumber.from(10).pow(18);
-
-  let fTokenAddress: string;
-  let startingDaiBalance: BigNumber;
-  let strategyAddress: string;
-
-  before(async function () {
-    this.signers = await hre.ethers.getSigners();
-
-    const signers: SignerWithAddress[] = await hre.ethers.getSigners();
-    this.signers.admin = signers[0];
-    //console.log("Using address", this.signers.admin.address);
-
-    // Deploy the AAVE strategy
-    //console.log("Deploying AAVE DAI Strategy")
-    const flashProtocolAddress = this.signers[1].address;
-    const flashStrategyAAVEv2Artifact: Artifact = await hre.artifacts.readArtifact("FlashStrategyAAVEv2");
-    this.flashStrategyAAVEv2Artifact = <FlashStrategyAAVEv2>(
-      await deployContract(this.signers.admin, flashStrategyAAVEv2Artifact, [
-        "0xE0fBa4Fc209b4948668006B2bE61711b7f465bAe",
-        principalTokenAddress,
-        "0xdCf0aF9e59C002FA3AA091a46196b37530FD48a8",
-        flashProtocolAddress,
-      ])
-    );
-    //console.log("-> AAVE DAI Strategy Deployed to", this.flashStrategyAAVEv2Artifact.address);
-    strategyAddress = this.flashStrategyAAVEv2Artifact.address;
-
-    // Create a new fERC20 token
-    const flashFTokenArtifact: Artifact = await hre.artifacts.readArtifact("FlashFToken");
-    const flashFTokenContract = <FlashFToken>(
-      await deployContract(this.signers.admin, flashFTokenArtifact, ["fDAI", "fDAI"])
-    );
-    //console.log("Flash fERC20 token deployed to", flashFTokenContract.address);
-    fTokenAddress = flashFTokenContract.address;
-
-    // Set the FTokenAddress in the strategy
-    await this.flashStrategyAAVEv2Artifact.connect(this.signers[1]).setFTokenAddress(flashFTokenContract.address);
-    //console.log("Successfully set fToken address in strategy")
-
-    // Attempt to set again and expect this to fail
-    await expect(
-      this.flashStrategyAAVEv2Artifact.connect(this.signers[1]).setFTokenAddress(flashFTokenContract.address),
-    ).to.be.revertedWith("FTOKEN ADDRESS ALREADY SET");
-
-    // Approve the Flash Strategy contract to spend fTokens from user wallet
-    await flashFTokenContract.approve(
-      this.flashStrategyAAVEv2Artifact.address,
-      BigNumber.from(2).pow(BigNumber.from(256)).sub(BigNumber.from(1)),
-    );
-  });
-
-  it("remainder subtract tests: 0-5=0, 5-5=0, 10-5=5", async function () {
-    expect(await this.flashStrategyAAVEv2Artifact.remainderSubtract(0, 5)).to.be.eq(BigNumber.from(0));
-    expect(await this.flashStrategyAAVEv2Artifact.remainderSubtract(5, 5)).to.be.eq(BigNumber.from(0));
-    expect(await this.flashStrategyAAVEv2Artifact.remainderSubtract(10, 5)).to.be.eq(BigNumber.from(5));
-  });
-
-  it("should impersonate account 0xca4ad39f872e89ef23eabd5716363fc22513e147 and transfer 1,000,000 DAI to account 0", async function () {
     // Tell hardhat to impersonate
     await hre.network.provider.request({
       method: "hardhat_impersonateAccount",
       params: ["0xca4ad39f872e89ef23eabd5716363fc22513e147"],
     });
     const signer = await hre.ethers.getSigner("0xca4ad39f872e89ef23eabd5716363fc22513e147");
-    const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
+    const daiContract = await hre.ethers.getContractAt("IERC20C", yieldTokenAddress);
+    await daiContract.connect(signer).transfer(this.flashStrategyAAVEv2Artifact.address, _amount);
 
-    // Connect using the impersonated account and transfer 1,000,000 DAI
-    await daiContract.connect(signer).transfer(this.signers[0].address, BigNumber.from(1000000).mul(multiplier));
+    const yieldBalanceAfter = await this.flashStrategyAAVEv2Artifact.getYieldBalance();
 
-    startingDaiBalance = await daiContract.balanceOf(this.signers[0].address);
-    expect(startingDaiBalance).gte(BigNumber.from(1000000).mul(multiplier)); // We only need 10,000 for tests
-  });
-
-  it("[account 1] should deposit 10,000 DAI principal", async function () {
-    const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
-
-    // Transfer 10,000 DAI to account 1 from account 0
-    const _amount = BigNumber.from(10000).mul(multiplier);
-    await daiContract.connect(this.signers[0]).transfer(this.signers[1].address, _amount);
-
-    // Approve spending of x DAI from this account against the Strategy Contract
-    await daiContract.connect(this.signers[0]).approve(this.flashStrategyAAVEv2Artifact.address, _amount);
-    expect(await daiContract.allowance(this.signers.admin.address, this.flashStrategyAAVEv2Artifact.address)).eq(
-      _amount,
-    );
-
-    await daiContract.connect(this.signers[0]).transfer(this.flashStrategyAAVEv2Artifact.address, _amount);
-    expect(await daiContract.balanceOf(this.flashStrategyAAVEv2Artifact.address)).eq(_amount);
-
-    // Deposit the x DAI in the Strategy Contract to AAVE
-    await this.flashStrategyAAVEv2Artifact.connect(this.signers[1]).depositPrincipal(_amount);
-
-    // Ensure the contract now reports there is 10,000 principal balance
-    expect(await this.flashStrategyAAVEv2Artifact.getPrincipalBalance()).eq(_amount);
-  });
-
-  it("ensure yield increases after 100 blocks (AAVE)", async function () {
-    const oldYieldTotal = await this.flashStrategyAAVEv2Artifact.getYieldBalance();
-
-    await mineBlocks(hre.ethers.provider, 100);
-
-    // Check how much yield has been generated
-    const yieldGenerated = await this.flashStrategyAAVEv2Artifact.getYieldBalance();
-
-    expect(yieldGenerated).to.be.gt(oldYieldTotal);
-  });
-
-  it("[account 0] should deposit 100 DAI as bootstrap balance", async function () {
-    const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
-    await daiContract
-      .connect(this.signers[0])
-      .transfer(this.flashStrategyAAVEv2Artifact.address, BigNumber.from(100).mul(multiplier));
-    expect(await daiContract.balanceOf(this.flashStrategyAAVEv2Artifact.address)).to.be.eq(
-      BigNumber.from(100).mul(multiplier),
-    );
-  });
-
-  it("should mint 10000.00000512 fERC20 (simulating 10k DAI for 365 days)", async function () {
-    const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
-    fTokenContract.mint(this.signers.admin.address, ethers.utils.parseUnits("10000.00000512", 18));
-  });
-
-  it("should ensure total yield is more than 100 DAI", async function () {
-    const currentYieldBalance = await this.flashStrategyAAVEv2Artifact.getYieldBalance();
-    expect(currentYieldBalance).to.be.gt(BigNumber.from(100).mul(multiplier));
-    console.log("\tCurrent Yield Balance is", ethers.utils.formatUnits(currentYieldBalance, 18));
-  });
-
-  it("(1) should burn half fDAI (~5000) for half of available yield paid from only bootstrap balance", async function () {
-    // The amount we want to burn (fERC20)
-    const burnAmount = ethers.utils.parseUnits("5000.00000256", 18);
-
-    // Determine the current total yield balance
-    const yieldBalance = await this.flashStrategyAAVEv2Artifact.getYieldBalance();
-
-    // Get a quote - how much yield token can we get
-    const quotedAmount = this.flashStrategyAAVEv2Artifact.quoteBurnFToken(burnAmount);
-
-    // Perform the burn
-    const result = await this.flashStrategyAAVEv2Artifact.burnFToken(burnAmount, quotedAmount, this.signers[0].address);
-
-    // Determine how many yield tokens we got back via event
-    let receipt: ContractReceipt = await result.wait();
-    // @ts-ignore
-    const args = (receipt.events?.filter(x => {
-      return x.event == "BurnedFToken";
-    }))[0]["args"];
-    // @ts-ignore
-    const yieldReturned = args["_yieldReturned"];
-
-    console.log("\t(1) Total yield is currently", ethers.utils.formatUnits(yieldBalance, 18));
-    console.log("\t(1) Expected result", ethers.utils.formatUnits(yieldBalance.div(2), 18));
-    console.log("\t(1) Actual result", ethers.utils.formatUnits(yieldReturned, 18));
-    expect(yieldReturned).to.be.gte(yieldBalance.div(2));
-  });
-
-  it("(2) should burn remaining fDAI (~5000) for half of available yield paid from both bootstrap balance and strategy", async function () {
-    // The amount we want to burn (fERC20)
-    const burnAmount = ethers.utils.parseUnits("5000.00000256", 18);
-
-    // Determine the current total yield balance
-    const yieldBalance = await this.flashStrategyAAVEv2Artifact.getYieldBalance();
-
-    // Get a quote - how much yield token can we get
-    const quotedAmount = this.flashStrategyAAVEv2Artifact.quoteBurnFToken(burnAmount);
-
-    // Perform the burn
-    const result = await this.flashStrategyAAVEv2Artifact.burnFToken(burnAmount, quotedAmount, this.signers[0].address);
-
-    // Determine how many yield tokens we got back via event
-    let receipt: ContractReceipt = await result.wait();
-    // @ts-ignore
-    const args = (receipt.events?.filter(x => {
-      return x.event == "BurnedFToken";
-    }))[0]["args"];
-    // @ts-ignore
-    const yieldReturned = args["_yieldReturned"];
-
-    console.log("\t(2) Total yield is currently", ethers.utils.formatUnits(yieldBalance, 18));
-    console.log("\t(2) Expected result", ethers.utils.formatUnits(yieldBalance.div(2), 18));
-    console.log("\t(2) Actual result", ethers.utils.formatUnits(yieldReturned, 18));
-    expect(yieldReturned).to.be.gte(yieldBalance.div(2));
-  });
-
-  it("should ensure total yield is 0 DAI", async function () {
-    const currentYieldBalance = await this.flashStrategyAAVEv2Artifact.getYieldBalance();
-    console.log("\tCurrent Yield Balance is", ethers.utils.formatUnits(currentYieldBalance, 18));
-    expect(currentYieldBalance).to.be.eq(0);
-  });
-
-  it("ensure yield increases after 100 blocks (AAVE)", async function () {
-    const oldYieldTotal = await this.flashStrategyAAVEv2Artifact.getYieldBalance();
-
-    await mineBlocks(hre.ethers.provider, 100);
-
-    // Check how much yield has been generated
-    const yieldGenerated = await this.flashStrategyAAVEv2Artifact.getYieldBalance();
-    console.log("\tCurrent Yield Balance is", ethers.utils.formatUnits(yieldGenerated, 18));
-
-    expect(yieldGenerated).to.be.gt(oldYieldTotal);
-  });
-
-  it("should mint 1 fERC20", async function () {
-    const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
-    fTokenContract.mint(this.signers.admin.address, ethers.utils.parseUnits("1", 18));
-  });
-
-  it("(3) should burn all fDAI for all of available yield paid from only strategy balance", async function () {
-    // The amount we want to burn (fERC20)
-    const burnAmount = ethers.utils.parseUnits("1", 18);
-
-    // Determine the current total yield balance
-    const yieldBalance = await this.flashStrategyAAVEv2Artifact.getYieldBalance();
-
-    // Get a quote - how much yield token can we get
-    const quotedAmount = this.flashStrategyAAVEv2Artifact.quoteBurnFToken(burnAmount);
-
-    // Perform the burn
-    const result = await this.flashStrategyAAVEv2Artifact.burnFToken(burnAmount, quotedAmount, this.signers[0].address);
-
-    // Determine how many yield tokens we got back via event
-    let receipt: ContractReceipt = await result.wait();
-    // @ts-ignore
-    const args = (receipt.events?.filter(x => {
-      return x.event == "BurnedFToken";
-    }))[0]["args"];
-    // @ts-ignore
-    const yieldReturned = args["_yieldReturned"];
-
-    console.log("\t(1) Total yield is currently", ethers.utils.formatUnits(yieldBalance, 18));
-    console.log("\t(1) Expected result", ethers.utils.formatUnits(yieldBalance, 18));
-    console.log("\t(1) Actual result", ethers.utils.formatUnits(yieldReturned, 18));
-    expect(yieldReturned).to.be.gte(yieldBalance);
-  });
-
-  it("should ensure principal balance is >= 10,000 aDAI", async function () {
-    const currentPrincipalBalance = await this.flashStrategyAAVEv2Artifact.getPrincipalBalance();
-
-    const aTokenContract = await hre.ethers.getContractAt("IERC20C", interestBearingTokenAddress);
-    const currentATokenBalance = await aTokenContract.balanceOf(this.flashStrategyAAVEv2Artifact.address);
-
-    expect(currentPrincipalBalance).to.be.gte(BigNumber.from(10000).mul(multiplier));
-    expect(currentATokenBalance).to.be.eq(BigNumber.from(10000).mul(multiplier));
-  });
-
-  it("should ensure quote is not available when fERC20 token supply is 0", async function () {
-    await expect(
-      this.flashStrategyAAVEv2Artifact.quoteBurnFToken(BigNumber.from(1).mul(multiplier)),
-    ).to.be.revertedWith("INSUFFICIENT fERC20 TOKEN SUPPLY");
+    expect(yieldBalanceAfter).gte(yieldBalanceBefore.add(_amount));
   });
 });
 

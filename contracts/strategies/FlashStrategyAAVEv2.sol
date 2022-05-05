@@ -21,8 +21,6 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
     event BurnedFToken(address indexed _address, uint256 _tokenAmount, uint256 _yieldReturned);
     event RewardClaimed(address _rewardToken, address indexed _address);
 
-    mapping(address => uint256) public fTokensBurned;
-
     // User incentive reward related
     uint256 public rewardTokenBalance;
     address public rewardTokenAddress;
@@ -95,9 +93,8 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
 
     function getYieldBalance() public view override returns (uint256) {
         uint256 interestBearingTokenBalance = IERC20C(interestBearingTokenAddress).balanceOf(address(this));
-        uint256 principalBootstrapBalance = IERC20C(principalTokenAddress).balanceOf(address(this));
 
-        return (interestBearingTokenBalance - getPrincipalBalance()) + principalBootstrapBalance;
+        return (interestBearingTokenBalance - getPrincipalBalance());
     }
 
     function getPrincipalAddress() public view override returns (address) {
@@ -148,20 +145,8 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         // Transfer fERC20 (from caller) tokens to contract so we can burn them
         IERC20C(fTokenAddress).burnFrom(msg.sender, _tokenAmount);
 
-        // Update the total
-        fTokensBurned[msg.sender] += _tokenAmount;
-
-        // Can we pay all of this yield via the bootstrapped tokens
-        uint256 bootstrapBalance = IERC20C(principalTokenAddress).balanceOf(address(this));
-        if (bootstrapBalance >= tokensOwed) {
-            IERC20C(principalTokenAddress).transfer(_yieldTo, tokensOwed);
-        } else {
-            uint256 amountToWithdraw = remainderSubtract(tokensOwed, bootstrapBalance);
-            uint256 bootstrapPayment = tokensOwed - amountToWithdraw;
-
-            withdrawYield(amountToWithdraw);
-            IERC20C(principalTokenAddress).transfer(_yieldTo, (amountToWithdraw + bootstrapPayment));
-        }
+        withdrawYield(tokensOwed);
+        IERC20C(principalTokenAddress).transfer(_yieldTo, tokensOwed);
 
         // Distribute rewards if there is a reward balance within contract
         if (rewardTokenBalance > 0) {
@@ -171,11 +156,6 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         emit BurnedFToken(msg.sender, _tokenAmount, tokensOwed);
 
         return tokensOwed;
-    }
-
-    function remainderSubtract(uint256 a, uint256 b) public pure returns (uint256 remainder) {
-        if (b > a) return 0;
-        return a - b;
     }
 
     modifier onlyFlashProtocol() {

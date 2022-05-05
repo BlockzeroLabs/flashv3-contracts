@@ -335,13 +335,19 @@ describe("Flashstake Tests", function () {
     expect(await fTokenContract.balanceOf(signers[3].address)).to.be.eq(stakeInfo.fTokensToUser);
   });
 
+  it("account 3 should approve protocol to spend fTokens", async function () {
+    // Approve the fToken contract for spending
+    const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
+    await fTokenContract.connect(signers[3]).approve(protocolContract.address, BigNumber.from(1000000).mul(multiplier));
+  });
+
   it("(2) set next block timestamp to 25% into stake", async function () {
     // Get the information about the stake
     const stakeInfo = await protocolContract.getStakeInfo(3, false);
     console.log("(2) stake info: stakeStartTs:", stakeInfo["stakeStartTs"].toString());
     console.log("(2) stake info: stakeDuration:", stakeInfo["stakeDuration"].toString());
 
-    const newTs = stakeInfo["stakeStartTs"].add(stakeInfo["stakeDuration"].div(BigNumber.from(4))).sub(1);
+    const newTs = stakeInfo["stakeStartTs"].add(stakeInfo["stakeDuration"].div(BigNumber.from(4)));
     console.log("(2) setting next block timestamp to", newTs.toString());
 
     // Set the next block timestamp
@@ -349,10 +355,6 @@ describe("Flashstake Tests", function () {
   });
 
   it("should unstake early from account 3 (not using NFT) and burn 750.000000384000000000 fTokens", async function () {
-    // Approve the fToken contract for spending
-    const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
-    await fTokenContract.connect(signers[3]).approve(protocolContract.address, BigNumber.from(1000000).mul(multiplier));
-
     // Perform the early unstake
     const result = await protocolContract.connect(signers[3]).unstakeEarly(3, false);
 
@@ -547,13 +549,19 @@ describe("Flashstake Tests", function () {
     );
   });
 
+  it("account 5 should approve protocol to spend fTokens", async function () {
+    // Approve the fToken contract for spending
+    const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
+    await fTokenContract.connect(signers[5]).approve(protocolContract.address, BigNumber.from(1000000).mul(multiplier));
+  });
+
   it("(2) set next block timestamp to 50% into stake", async function () {
     // Get the information about the stake
     const stakeInfo = await protocolContract.getStakeInfo(2, true);
     console.log("(2) stake info: stakeStartTs:", stakeInfo["stakeStartTs"].toString());
     console.log("(2) stake info: stakeDuration:", stakeInfo["stakeDuration"].toString());
 
-    const newTs = stakeInfo["stakeStartTs"].add(stakeInfo["stakeDuration"].div(BigNumber.from(2))).sub(1);
+    const newTs = stakeInfo["stakeStartTs"].add(stakeInfo["stakeDuration"].div(BigNumber.from(2)));
     console.log("(2) setting next block timestamp to", newTs.toString());
 
     // Set the next block timestamp
@@ -561,10 +569,6 @@ describe("Flashstake Tests", function () {
   });
 
   it("should unstake early from account 5 (using NFT) and burn 5000.00000256 fTokens", async function () {
-    // Approve the fToken contract for spending
-    const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
-    await fTokenContract.connect(signers[5]).approve(protocolContract.address, BigNumber.from(1000000).mul(multiplier));
-
     // Perform the early unstake
     const result = await protocolContract.connect(signers[5]).unstakeEarly(2, true);
 
@@ -731,7 +735,7 @@ describe("Flashstake Tests", function () {
     expect(await flashTokenContract.balanceOf(signers[7].address)).to.be.eq(ethers.utils.parseUnits("5", 18));
   });
 
-  it("account 0 should fail changing ratio to 0.25 with error XXX", async function () {
+  it("account 0 should fail changing ratio to 0.25 with error RATIO CAN ONLY BE INCREASED", async function () {
     const _ratio = ethers.utils.parseUnits("0.25", 18);
     await expect(strategyContract.setRewardRatio(_ratio)).to.be.revertedWith("RATIO CAN ONLY BE INCREASED");
   });
