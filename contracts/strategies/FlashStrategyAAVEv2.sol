@@ -172,10 +172,10 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         uint256 _tokenAmount,
         uint256 _ratio
     ) public onlyOwner {
-        require(block.timestamp > rewardLockoutTs, "LOCKOUT IN FORCE");
-
         // Withdraw any reward tokens currently in contract and deposit new tokens
         if (rewardTokenBalance > 0) {
+            // Only enforce this check if the rewardTokenBalance <= 0
+            require(block.timestamp > rewardLockoutTs, "LOCKOUT IN FORCE");
             IERC20C(rewardTokenAddress).transfer(msg.sender, rewardTokenBalance);
         }
         IERC20C(_rewardTokenAddress).transferFrom(msg.sender, address(this), _tokenAmount);

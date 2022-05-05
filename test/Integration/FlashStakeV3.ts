@@ -6,7 +6,7 @@ import { expect } from "chai";
 import { BigNumber, ContractReceipt, ethers } from "ethers";
 const { deployContract } = hre.waffle;
 
-describe("Flashstake Tests", function () {
+describe.only("Flashstake Tests", function () {
   const multiplier = BigNumber.from(10).pow(BigNumber.from(18));
 
   let principalTokenAddress = "0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD";
@@ -655,6 +655,10 @@ describe("Flashstake Tests", function () {
     await strategyContract.addRewardTokens(_amount);
   });
 
+  it("reward balance should be 101,000 FLASH", async function () {
+    expect(await strategyContract.rewardTokenBalance()).to.be.eq(BigNumber.from(101000).mul(multiplier));
+  });
+
   it("account 0 should fail when depositing new reward with error LOCKOUT IN FORCE", async function () {
     const _tokenAddress = flashTokenContract.address;
     const _amount = BigNumber.from(1000).mul(multiplier);
@@ -804,7 +808,7 @@ describe("Flashstake Tests", function () {
     expect(newRewardBalance).to.be.eq(expectedBalance);
   });
 
-  it("account 7 should burn 700 fERC20 tokens and receive 10,000 FLASH tokens at account 8", async function () {
+  it("account 7 should burn 700 fERC20 tokens and receive 1,000 FLASH tokens at account 8", async function () {
     const _amountToBurn = BigNumber.from(700).mul(multiplier);
 
     // Account 8 should have no principal tokens
@@ -837,5 +841,19 @@ describe("Flashstake Tests", function () {
 
     // We would have also got back some principal tokens
     expect(await principalTokenContract.balanceOf(signers[8].address)).to.be.gt(0);
+  });
+
+  it("ensure reward token balance is 0 and owner can depositReward: 1000 Flash @ 1.5 ratio", async function () {
+    const oldRewardBalance = await strategyContract.rewardTokenBalance();
+    expect(oldRewardBalance).to.be.eq("0");
+
+    const _tokenAddress = flashTokenContract.address;
+    const _amount = BigNumber.from(1000).mul(multiplier);
+    const _ratio = ethers.utils.parseUnits("1.5", 18);
+
+    await strategyContract.depositReward(_tokenAddress, _amount, _ratio);
+
+    const newRewardBalance = await strategyContract.rewardTokenBalance();
+    expect(newRewardBalance).to.be.eq(oldRewardBalance.add(_amount));
   });
 });
