@@ -303,7 +303,7 @@ describe("Flashstake Tests", function () {
     expect(balance).gte(BigNumber.from(2000).mul(multiplier));
   });
 
-  it("(1) should stake 1,000 DAI from account 3 (do not issue NFT)", async function () {
+  it("(1) should stake 1,000 DAI from account 3 (do not issue NFT) and get back 1000.000000512 fERC20", async function () {
     const _amount = BigNumber.from(1000).mul(multiplier);
     const _duration = 31536000; // 365 days in seconds
 
@@ -329,10 +329,11 @@ describe("Flashstake Tests", function () {
     // @ts-ignore
     console.log("(1) stake id =", args["_stakeId"].toString());
     // @ts-ignore
-    console.log("(1) _fTokenMinted =", stakeInfo.fTokensToUser.toString());
+    console.log("(1) fTokensToUser =", stakeInfo.fTokensToUser.toString());
 
     const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
     expect(await fTokenContract.balanceOf(signers[3].address)).to.be.eq(stakeInfo.fTokensToUser);
+    expect(await fTokenContract.balanceOf(signers[3].address)).to.be.eq(ethers.utils.parseUnits("1000.000000512", 18));
   });
 
   it("account 3 should approve protocol to spend fTokens", async function () {
@@ -354,20 +355,22 @@ describe("Flashstake Tests", function () {
     await hre.network.provider.send("evm_setNextBlockTimestamp", [newTs.toNumber()]);
   });
 
-  it("should unstake early from account 3 (not using NFT) and burn 750.000000384000000000 fTokens", async function () {
+  it("should unstake early from account 3 (not using NFT) using 187.500000096 fTokens to get back 250 DAI", async function () {
     // Perform the early unstake
-    const result = await protocolContract.connect(signers[3]).unstakeEarly(3, false);
+    const result = await protocolContract
+      .connect(signers[3])
+      .unstakeEarly(ethers.utils.parseUnits("187.500000096", 18), 3, false);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore
     const args = (receipt.events?.filter(x => {
-      return x.event == "Unstaked";
+      return x.event == "PartialUnstakeEarly";
     }))[0]["args"];
     // @ts-ignore
-    expect(args["_tokensReturned"]).to.be.eq(BigNumber.from(1000).mul(multiplier));
+    expect(args["_tokensReturned"]).to.be.eq(BigNumber.from(250).mul(multiplier));
     // @ts-ignore
-    expect(args["_fTokensBurned"]).to.be.eq("750000000384000000000");
+    expect(args["_fTokensBurned"]).to.be.eq(ethers.utils.parseUnits("187.500000096", 18));
   });
 
   it("should fail when setting fToken fee as non-owner with error Ownable: caller is not the owner", async function () {
@@ -493,7 +496,9 @@ describe("Flashstake Tests", function () {
   });
 
   it("should fail when unstaking as account 2 with error NOT OWNER OF STAKE", async function () {
-    await expect(protocolContract.connect(signers[2]).unstakeEarly(5, false)).to.be.revertedWith("NOT OWNER OF STAKE");
+    await expect(
+      protocolContract.connect(signers[2]).unstakeEarly(ethers.utils.parseUnits("1", 18), 5, false),
+    ).to.be.revertedWith("NOT OWNER OF STAKE");
   });
 
   it("should fail when issuing nft as account 2 with error NOT OWNER OF STAKE", async function () {
@@ -523,19 +528,23 @@ describe("Flashstake Tests", function () {
   it("should fail when account 2 attempts to unstakeEarly with invalid nft ID with error NFT FOR STAKE NON-EXISTENT", async function () {
     // We don't need to increase the EVM ts because we did that in the last test
 
-    await expect(protocolContract.connect(signers[2]).unstakeEarly(100, true)).to.be.revertedWith(
-      "NFT FOR STAKE NON-EXISTENT",
-    );
+    await expect(
+      protocolContract.connect(signers[2]).unstakeEarly(ethers.utils.parseUnits("1", 18), 100, true),
+    ).to.be.revertedWith("NFT FOR STAKE NON-EXISTENT");
   });
 
   it("should fail when account 2 attempts to unstake NFT they do not own with error NOT OWNER OF NFT", async function () {
     // We don't need to increase the EVM ts because we did that in the last test
 
-    await expect(protocolContract.connect(signers[2]).unstakeEarly(2, true)).to.be.revertedWith("NOT OWNER OF NFT");
+    await expect(
+      protocolContract.connect(signers[2]).unstakeEarly(ethers.utils.parseUnits("1", 18), 2, true),
+    ).to.be.revertedWith("NOT OWNER OF NFT");
   });
 
   it("should fail when account 2 attempts to unstakeEarly (without NFT) with error NFT TOKEN REQUIRED", async function () {
-    await expect(protocolContract.connect(signers[2]).unstakeEarly(2, false)).to.be.revertedWith("NFT TOKEN REQUIRED");
+    await expect(
+      protocolContract.connect(signers[2]).unstakeEarly(ethers.utils.parseUnits("1", 18), 2, false),
+    ).to.be.revertedWith("NFT TOKEN REQUIRED");
   });
 
   it("should fail unstaking early with nft with error MINIMUM STAKE DURATION IS 60 SECONDS", async function () {
@@ -544,9 +553,9 @@ describe("Flashstake Tests", function () {
     await fTokenContract.connect(signers[5]).approve(protocolContract.address, BigNumber.from(1000000).mul(multiplier));
 
     // Perform the early unstake
-    await expect(protocolContract.connect(signers[5]).unstakeEarly(2, true)).to.be.revertedWith(
-      "MINIMUM STAKE DURATION IS 60 SECONDS",
-    );
+    await expect(
+      protocolContract.connect(signers[5]).unstakeEarly(ethers.utils.parseUnits("1", 18), 2, true),
+    ).to.be.revertedWith("MINIMUM STAKE DURATION IS 60 SECONDS");
   });
 
   it("account 5 should approve protocol to spend fTokens", async function () {
@@ -568,20 +577,22 @@ describe("Flashstake Tests", function () {
     await hre.network.provider.send("evm_setNextBlockTimestamp", [newTs.toNumber()]);
   });
 
-  it("should unstake early from account 5 (using NFT) and burn 5000.00000256 fTokens", async function () {
+  it("should unstake early from account 5 (using NFT) using 2500.00000128 fTokens to get back 5,000 DAI", async function () {
     // Perform the early unstake
-    const result = await protocolContract.connect(signers[5]).unstakeEarly(2, true);
+    const result = await protocolContract
+      .connect(signers[5])
+      .unstakeEarly(ethers.utils.parseUnits("2500.00000128", 18), 2, true);
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore
     const args = (receipt.events?.filter(x => {
-      return x.event == "Unstaked";
+      return x.event == "PartialUnstakeEarly";
     }))[0]["args"];
     // @ts-ignore
-    expect(args["_tokensReturned"]).to.be.eq(BigNumber.from(10000).mul(multiplier));
+    expect(args["_tokensReturned"]).to.be.eq(BigNumber.from(5000).mul(multiplier));
     // @ts-ignore
-    expect(args["_fTokensBurned"]).to.be.eq("5000000002560000000000");
+    expect(args["_fTokensBurned"]).to.be.eq("2500000001280000000000");
   });
 
   it("should impersonate account 0xca4ad39f872e89ef23eabd5716363fc22513e147 and transfer 1,000 DAI to account 6", async function () {
@@ -855,5 +866,91 @@ describe("Flashstake Tests", function () {
 
     const newRewardBalance = await strategyContract.rewardTokenBalance();
     expect(newRewardBalance).to.be.eq(oldRewardBalance.add(_amount));
+  });
+
+  // These tests are to ensure the user can unstake early without having any real time pass
+  it("should impersonate account 0xca4ad39f872e89ef23eabd5716363fc22513e147 and transfer 2,000 DAI to account 6", async function () {
+    await hre.network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: ["0xca4ad39f872e89ef23eabd5716363fc22513e147"],
+    });
+    const signer = await hre.ethers.getSigner("0xca4ad39f872e89ef23eabd5716363fc22513e147");
+    const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
+
+    // Connect using the impersonated account and transfer 1,000,000 DAI
+    await daiContract.connect(signer).transfer(signers[6].address, BigNumber.from(2000).mul(multiplier));
+
+    const balance = await daiContract.balanceOf(signers[6].address);
+    expect(balance).gte(BigNumber.from(2000).mul(multiplier));
+  });
+
+  it("(1) should stake 1,000 DAI from account 6 (do not issue NFT) and get back 800.0000004096 fERC20", async function () {
+    const _amount = BigNumber.from(1000).mul(multiplier);
+    const _duration = 31536000; // 365 days in seconds
+
+    // Approve the contract for spending
+    const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
+    await daiContract.connect(signers[6]).approve(protocolContract.address, _amount);
+
+    // Perform the stake
+    const result = await protocolContract
+      .connect(signers[6])
+      .stake(strategyContract.address, _amount, _duration, signers[6].address, false);
+
+    // Determine how many yield tokens we got back via event
+    let receipt: ContractReceipt = await result.wait();
+    // @ts-ignore
+    const args = (receipt.events?.filter(x => {
+      return x.event == "Staked";
+    }))[0]["args"];
+    // @ts-ignore
+    const stakeInfo = await protocolContract.getStakeInfo(args["_stakeId"], false);
+
+    console.log("(1) input tokens =", _amount.toString());
+    // @ts-ignore
+    console.log("(1) stake id =", args["_stakeId"].toString());
+    // @ts-ignore
+    console.log("(1) fTokensToUser =", stakeInfo.fTokensToUser.toString());
+
+    const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
+    expect(await fTokenContract.balanceOf(signers[6].address)).to.be.eq(stakeInfo.fTokensToUser);
+    expect(await fTokenContract.balanceOf(signers[6].address)).to.be.eq(ethers.utils.parseUnits("800.0000004096", 18));
+  });
+
+  it("account 6 should approve protocol to spend fTokens", async function () {
+    // Approve the fToken contract for spending
+    const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
+    await fTokenContract.connect(signers[6]).approve(protocolContract.address, BigNumber.from(1000000).mul(multiplier));
+  });
+
+  it("(2) advance next block timestamp: startStartTs + 61 seconds", async function () {
+    // Get the information about the stake
+    const stakeInfo = await protocolContract.getStakeInfo(8, false);
+    console.log("(2) stake info: stakeStartTs:", stakeInfo["stakeStartTs"].toString());
+    console.log("(2) stake info: stakeDuration:", stakeInfo["stakeDuration"].toString());
+
+    const newTs = stakeInfo["stakeStartTs"].add(BigNumber.from("61"));
+    console.log("(2) setting next block timestamp to", newTs.toString());
+
+    // Set the next block timestamp
+    await hre.network.provider.send("evm_setNextBlockTimestamp", [newTs.toNumber()]);
+  });
+
+  it("should unstake early from account 6 (not using NFT) using 800.0000004096 fTokens to get back >= 800 DAI", async function () {
+    // Perform the early unstake
+    const result = await protocolContract
+      .connect(signers[6])
+      .unstakeEarly(ethers.utils.parseUnits("800.0000004096", 18), 8, false);
+
+    // Determine how many yield tokens we got back via event
+    let receipt: ContractReceipt = await result.wait();
+    // @ts-ignore
+    const args = (receipt.events?.filter(x => {
+      return x.event == "PartialUnstakeEarly";
+    }))[0]["args"];
+    // @ts-ignore
+    expect(args["_tokensReturned"]).to.be.gte(BigNumber.from(800).mul(multiplier));
+    // @ts-ignore
+    expect(args["_fTokensBurned"]).to.be.eq(ethers.utils.parseUnits("800.0000004096", 18));
   });
 });
