@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../interfaces/IERC20C.sol";
 import "../interfaces/AAVE/ILendingPool.sol";
+import "../interfaces/AAVE/IAaveIncentivesController.sol";
 import "../interfaces/IFlashStrategy.sol";
 
 contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
@@ -17,6 +18,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
     address interestBearingTokenAddress; // The AAVE V2 interest bearing token address
     uint16 referralCode = 0; // The AAVE V2 referral code
     uint256 principalBalance; // The amount of principal in this strategy
+    address aaveIncentivesAddress = 0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5;
 
     event BurnedFToken(address indexed _address, uint256 _tokenAmount, uint256 _yieldReturned);
     event RewardClaimed(address _rewardToken, address indexed _address);
@@ -224,5 +226,9 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         rewardTokenBalance = rewardTokenBalance - rewardAmount;
 
         emit RewardClaimed(rewardTokenAddress, msg.sender);
+    }
+
+    function claimAAVEv2Rewards(address[] calldata _assets, uint256 _amount) public onlyOwner {
+        IAaveIncentivesController(aaveIncentivesAddress).claimRewards(_assets, _amount, address(this));
     }
 }
