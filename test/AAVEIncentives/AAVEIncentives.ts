@@ -1,6 +1,6 @@
 import hre from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import { FlashFToken, FlashStrategyAAVEv2 } from "../../typechain";
+import { FlashStrategyAAVEv2 } from "../../typechain";
 import { Artifact } from "hardhat/types";
 import { expect } from "chai";
 import { BigNumber, ethers } from "ethers";
