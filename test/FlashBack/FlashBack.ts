@@ -11,6 +11,7 @@ describe("FlashBack Tests", function () {
   let flashTokenContract: FlashToken;
   let flashBackContract: FlashBack;
   let signers: SignerWithAddress[];
+  let forfeitAddress = "0x0585AD5227bE9b5c2D7f9506f9b5b2409BF48524";
 
   before(async function () {
     signers = await hre.ethers.getSigners();
@@ -24,7 +25,7 @@ describe("FlashBack Tests", function () {
     flashBackContract = <FlashBack>await deployContract(signers[0], flashBackContractA, [flashTokenContract.address]);
 
     // Set the forfeit address
-    await flashBackContract.setForfeitRewardAddress("0x0585AD5227bE9b5c2D7f9506f9b5b2409BF48524");
+    await flashBackContract.setForfeitRewardAddress(forfeitAddress);
   });
 
   it("should transfer 25,000,000 Flash from account 0 to flashback contract", async function () {
@@ -183,7 +184,7 @@ describe("FlashBack Tests", function () {
     await hre.network.provider.send("evm_increaseTime", [increaseBy]);
   });
 
-  it("(3a) account 1 should unstake early, get back principal, rewards should redirect to treasury", async function () {
+  it("(3a) account 1 should unstake early (stakeid 1), get back principal, rewards should redirect to treasury", async function () {
     const stakeInfo = await flashBackContract.stakes(1);
     const oldBalance = await flashTokenContract.balanceOf(signers[1].address);
     console.log("(3a) oldBalance", ethers.utils.formatUnits(oldBalance));
@@ -192,12 +193,15 @@ describe("FlashBack Tests", function () {
 
     const expectedBalance = oldBalance.add(stakeInfo.stakedAmount);
     console.log("(3a) expectedBalance", ethers.utils.formatUnits(expectedBalance));
+    console.log("(3a) actualBalance", ethers.utils.formatUnits(await flashTokenContract.balanceOf(signers[1].address)));
     expect(await flashTokenContract.balanceOf(signers[1].address)).to.be.eq(expectedBalance);
     expect((await flashBackContract.stakes(1)).active).to.be.false;
 
     expect(await flashTokenContract.balanceOf(await flashBackContract.forfeitRewardAddress())).to.be.eq(
       stakeInfo.reservedReward,
     );
+    expect(await flashTokenContract.balanceOf(forfeitAddress)).to.be.eq(stakeInfo.reservedReward);
+    console.log("(3a) Forfeit address balance", stakeInfo.reservedReward);
   });
 
   it("increase block time by 365 days", async function () {
