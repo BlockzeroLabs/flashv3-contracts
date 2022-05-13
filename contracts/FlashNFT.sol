@@ -12,11 +12,11 @@ contract FlashNFT is ERC721URIStorage, Ownable {
 
     constructor() public ERC721("Flashstake NFT", "FLASHNFT") {}
 
-    function contractURI() public view returns (string memory) {
+    function contractURI() public pure returns (string memory) {
         return "https://nft.flashstake.io/metadata";
     }
 
-    function _baseURI() internal view virtual override returns (string memory) {
+    function _baseURI() internal pure virtual override returns (string memory) {
         return "https://nft.flashstake.io/";
     }
 
