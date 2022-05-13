@@ -153,6 +153,7 @@ describe("Flashstake Tests", function () {
 
     const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
     expect(await fTokenContract.balanceOf(signers[1].address)).to.be.eq(stakeInfo.fTokensToUser);
+    expect(stakeInfo.active).to.be.true;
   });
 
   it("should fail when unstaking as account 1 with error STAKE NOT EXPIRED", async function () {
@@ -163,10 +164,14 @@ describe("Flashstake Tests", function () {
     await expect(protocolContract.connect(signers[2]).unstake(1, false)).to.be.revertedWith("NOT OWNER OF STAKE");
   });
 
-  it("should unstake as account 1 after 365 days", async function () {
+  it("(1) should unstake as account 1 after 365 days", async function () {
+    const stakeInfo = await protocolContract.getStakeInfo(1, false);
+
     // Increase the timestamp of the next block
-    const newTs = new Date().getTime() / 1000 + 31536000; // Get the current Ts and add 355 days
-    await hre.network.provider.send("evm_setNextBlockTimestamp", [newTs]);
+    const newTs = stakeInfo.stakeStartTs.add(BigNumber.from(31536000));
+    console.log("(1) setting next blocktimestamp to", newTs);
+
+    await hre.network.provider.send("evm_setNextBlockTimestamp", [newTs.toNumber()]);
     await hre.network.provider.send("evm_mine");
 
     const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
@@ -222,6 +227,7 @@ describe("Flashstake Tests", function () {
     const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
     expect(await fTokenContract.balanceOf(signers[2].address)).to.be.eq(stakeInfo.fTokensToUser);
     expect(stakeInfo.fTokensToUser).to.be.eq("2000000001024000000000");
+    expect(stakeInfo.active).to.be.true;
   });
 
   it("should fail when attempting to create NFT for stake that already have an NFT associated", async function () {
@@ -334,6 +340,7 @@ describe("Flashstake Tests", function () {
     const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
     expect(await fTokenContract.balanceOf(signers[3].address)).to.be.eq(stakeInfo.fTokensToUser);
     expect(await fTokenContract.balanceOf(signers[3].address)).to.be.eq(ethers.utils.parseUnits("1000.000000512", 18));
+    expect(stakeInfo.active).to.be.true;
   });
 
   it("account 3 should approve protocol to spend fTokens", async function () {
@@ -373,18 +380,18 @@ describe("Flashstake Tests", function () {
 
   it("should fail when setting fToken fee as non-owner with error Ownable: caller is not the owner", async function () {
     await expect(
-      protocolContract.connect(signers[5]).setMintFees("0x5089722613C2cCEe071C39C59e9889641f435F15", 20000),
+      protocolContract.connect(signers[5]).setMintFeeInfo("0x5089722613C2cCEe071C39C59e9889641f435F15", 20000),
     ).to.be.revertedWith("Ownable: caller is not the owner");
   });
 
   it("should fail when setting fee to 20.01% with error MINT FEE TOO HIGH", async function () {
     await expect(
-      protocolContract.connect(signers[0]).setMintFees("0x5089722613C2cCEe071C39C59e9889641f435F15", 2001),
+      protocolContract.connect(signers[0]).setMintFeeInfo("0x5089722613C2cCEe071C39C59e9889641f435F15", 2001),
     ).to.be.revertedWith("MINT FEE TOO HIGH");
   });
 
   it("should set fee: 20% to 0x5089722613C2cCEe071C39C59e9889641f435F15", async function () {
-    await protocolContract.connect(signers[0]).setMintFees("0x5089722613C2cCEe071C39C59e9889641f435F15", 2000);
+    await protocolContract.connect(signers[0]).setMintFeeInfo("0x5089722613C2cCEe071C39C59e9889641f435F15", 2000);
   });
 
   it("should impersonate account 0xca4ad39f872e89ef23eabd5716363fc22513e147 and transfer 1,000 DAI to account 4", async function () {
@@ -536,7 +543,7 @@ describe("Flashstake Tests", function () {
   });
 
   it("should fail when account 2 attempts to unstakeEarly (without NFT) with error NFT TOKEN REQUIRED", async function () {
-    await expect(protocolContract.connect(signers[2]).unstakeEarly(2, false)).to.be.revertedWith("NFT TOKEN REQUIRED");
+    await expect(protocolContract.connect(signers[2]).unstakeEarly(5, false)).to.be.revertedWith("NFT TOKEN REQUIRED");
   });
 
   it("should fail unstaking early with nft with error MINIMUM STAKE DURATION IS 60 SECONDS", async function () {

@@ -66,7 +66,7 @@ task("deploy:FlashProtocol")
     console.log("-> Flash V3 Protocol Deployed to", flashV3Protocol.address);
 
     console.log("Setting mint fees to 20%");
-    await flashV3Protocol.setMintFees("0x53B51DE1706FC485f389cA3D5B8fE4251F0d769e", 2000);
+    await flashV3Protocol.setMintFeeInfo("0x53B51DE1706FC485f389cA3D5B8fE4251F0d769e", 2000);
     console.log("-> done");
   });
 
