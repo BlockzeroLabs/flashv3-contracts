@@ -3,10 +3,9 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./interfaces/IERC20C.sol";
 
-contract FlashBack is Ownable, ReentrancyGuard {
+contract FlashBack is Ownable {
     using SafeMath for uint256;
 
     address public immutable stakingTokenAddress;
@@ -35,7 +34,7 @@ contract FlashBack is Ownable, ReentrancyGuard {
         stakingTokenAddress = _stakingTokenAddress;
     }
 
-    function stake(uint256 _amount, uint256 _duration) external nonReentrant returns (uint256) {
+    function stake(uint256 _amount, uint256 _duration) external returns (uint256) {
         require(msg.sender != 0x5089722613C2cCEe071C39C59e9889641f435F15, "BLACKLISTED ADDRESS");
         require(msg.sender != 0x8603FfE7B00CCd759f28aBfE448454A24cFba581, "BLACKLISTED ADDRESS");
 
@@ -57,7 +56,7 @@ contract FlashBack is Ownable, ReentrancyGuard {
         return stakeCount;
     }
 
-    function unstake(uint256 _stakeId) external nonReentrant {
+    function unstake(uint256 _stakeId) external {
         StakeStruct memory p = stakes[_stakeId];
 
         // Determine if the stake exists
