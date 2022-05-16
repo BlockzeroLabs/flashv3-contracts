@@ -111,10 +111,11 @@ describe("FlashBack Tests", function () {
   it("(1) account 1 should stake 1,000,000 Flash for 36.5 days", async function () {
     let _amount = ethers.utils.parseUnits("1000000", 18);
     let _duration = 86400 * 36.5;
+    let _minimumReward = ethers.utils.parseUnits("100000.0000007424", 18);
 
     // Approval and stake
     await flashTokenContract.connect(signers[1]).approve(flashBackContract.address, _amount);
-    let result = await flashBackContract.connect(signers[1]).stake(_amount, _duration);
+    let result = await flashBackContract.connect(signers[1]).stake(_amount, _duration, _minimumReward);
 
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore
@@ -131,10 +132,11 @@ describe("FlashBack Tests", function () {
   it("(2) account 2 should stake 536,432 Flash for 365 days", async function () {
     let _amount = ethers.utils.parseUnits("536432", 18);
     let _duration = 86400 * 365;
+    let _minimumReward = ethers.utils.parseUnits("536432.000003982471168", 18);
 
     // Approval and stake
     await flashTokenContract.connect(signers[2]).approve(flashBackContract.address, _amount);
-    let result = await flashBackContract.connect(signers[2]).stake(_amount, _duration);
+    let result = await flashBackContract.connect(signers[2]).stake(_amount, _duration, _minimumReward);
 
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore
@@ -148,13 +150,26 @@ describe("FlashBack Tests", function () {
     expect(await flashTokenContract.balanceOf(signers[2].address)).to.be.eq(ethers.utils.parseUnits("463568", 18));
   });
 
-  it("(3) account 2 should stake 12,500 Flash for 365 days", async function () {
+  it("(3) account 2 should fail: stake 12,500 Flash for 365 days, _minimumReward = 12501 with error MINIMUM REWARD NOT MET", async function () {
     let _amount = ethers.utils.parseUnits("12500", 18);
     let _duration = 86400 * 365;
+    let _minimumReward = ethers.utils.parseUnits("12501", 18);
 
     // Approval and stake
     await flashTokenContract.connect(signers[2]).approve(flashBackContract.address, _amount);
-    let result = await flashBackContract.connect(signers[2]).stake(_amount, _duration);
+    await expect(flashBackContract.connect(signers[2]).stake(_amount, _duration, _minimumReward)).to.be.revertedWith(
+      "MINIMUM REWARD NOT MET",
+    );
+  });
+
+  it("(3) account 2 should stake 12,500 Flash for 365 days", async function () {
+    let _amount = ethers.utils.parseUnits("12500", 18);
+    let _duration = 86400 * 365;
+    let _minimumReward = ethers.utils.parseUnits("12500.0000000928", 18);
+
+    // Approval and stake
+    await flashTokenContract.connect(signers[2]).approve(flashBackContract.address, _amount);
+    let result = await flashBackContract.connect(signers[2]).stake(_amount, _duration, _minimumReward);
 
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore

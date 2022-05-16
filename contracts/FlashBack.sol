@@ -34,11 +34,16 @@ contract FlashBack is Ownable {
         stakingTokenAddress = _stakingTokenAddress;
     }
 
-    function stake(uint256 _amount, uint256 _duration) external returns (uint256) {
+    function stake(
+        uint256 _amount,
+        uint256 _duration,
+        uint256 _minimumReward
+    ) external returns (uint256) {
         require(msg.sender != 0x5089722613C2cCEe071C39C59e9889641f435F15, "BLACKLISTED ADDRESS");
         require(msg.sender != 0x8603FfE7B00CCd759f28aBfE448454A24cFba581, "BLACKLISTED ADDRESS");
 
         uint256 reward = calculateReward(_amount, _duration);
+        require(reward >= _minimumReward, "MINIMUM REWARD NOT MET");
 
         // Transfer tokens from user into contract
         IERC20C(stakingTokenAddress).transferFrom(msg.sender, address(this), _amount);
@@ -98,8 +103,6 @@ contract FlashBack is Ownable {
         if (reward > rewardsAvailable) {
             reward = rewardsAvailable;
         }
-
-        require(reward > 0, "INSUFFICIENT REWARD");
 
         return reward;
     }
