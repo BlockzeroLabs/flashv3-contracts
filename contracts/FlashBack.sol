@@ -16,6 +16,8 @@ contract FlashBack is Ownable {
     uint256 public totalLockedAmount;
     address public forfeitRewardAddress = 0x8603FfE7B00CCd759f28aBfE448454A24cFba581;
 
+    uint256 public rewardRate = 31709791984;
+
     struct StakeStruct {
         address stakerAddress;
         uint256 stakedAmount;
@@ -95,7 +97,7 @@ contract FlashBack is Ownable {
         require(_duration >= minimumStakeDuration, "MINIMUM STAKE DURATION IS 10 DAYS");
         require(_duration <= maximumStakeDuration, "MAXIMUM STAKE DURATION IS 365 DAYS");
 
-        uint256 reward = (_amount * (31709791984 * _duration)) / (10**18);
+        uint256 reward = (_amount * (rewardRate * _duration)) / (10**18);
 
         uint256 rewardsAvailable = IERC20C(stakingTokenAddress).balanceOf(address(this)) -
             totalReservedRewards -
@@ -111,7 +113,12 @@ contract FlashBack is Ownable {
         forfeitRewardAddress = _forfeitRewardAddress;
     }
 
-    function getAvailableRewards() public view returns (uint256) {
+    function setRewardRate(uint256 _rewardRate) external onlyOwner {
+        require(_rewardRate <= 63419583968, "INVALID REWARD RATE");
+        rewardRate = _rewardRate;
+    }
+
+    function getAvailableRewards() external view returns (uint256) {
         return IERC20C(stakingTokenAddress).balanceOf(address(this)) - totalReservedRewards - totalLockedAmount;
     }
 }

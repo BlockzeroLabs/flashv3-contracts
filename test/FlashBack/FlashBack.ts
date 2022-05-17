@@ -256,4 +256,23 @@ describe("FlashBack Tests", function () {
   it("account 2 should attempt to unstake twice and fail with error INVALID STAKE", async function () {
     await expect(flashBackContract.connect(signers[2]).unstake(3)).to.be.revertedWith("INVALID STAKE");
   });
+
+  it("account 0 should fail to increase reward rate to > 63419583968 / 200% with error INVALID REWARD RATE", async function () {
+    await expect(flashBackContract.connect(signers[0]).setRewardRate("63419583969")).to.be.revertedWith(
+      "INVALID REWARD RATE",
+    );
+  });
+
+  it("account 0 should increase reward rate to: 63419583968 / 200%", async function () {
+    await flashBackContract.connect(signers[0]).setRewardRate("63419583968");
+  });
+
+  it("account 1 should get quote, 1,000,000 FLASH for 182.5 days = 1000000.000007424 in rewards", async function () {
+    let _amount = ethers.utils.parseUnits("1000000", 18);
+    let _duration = 15768000;
+
+    let result = await flashBackContract.calculateReward(_amount, _duration);
+
+    expect(result).to.be.eq(ethers.utils.parseUnits("1000000.000007424", 18));
+  });
 });
