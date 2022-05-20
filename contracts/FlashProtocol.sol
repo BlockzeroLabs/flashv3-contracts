@@ -45,6 +45,8 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         uint256 nftId; // NFT id if set
         uint256 fTokensToUser; // How many fERC20 tokens were minted
         uint256 fTokensFee; // How many fERC20 tokens were taken as fee
+        uint256 totalFTokenBurned;
+        uint256 totalStakedWithdrawn;
     }
     mapping(uint256 => StakeStruct) public stakes;
 
@@ -55,7 +57,7 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         address indexed _fTokenAddress
     );
     event Staked(uint256 _stakeId);
-    event Unstaked(uint256 _stakeId, bool _unstakedEarly, uint256 _tokensReturned, uint256 _fTokensBurned);
+    event Unstaked(uint256 _stakeId, uint256 _tokensReturned, uint256 _fTokensBurned, bool _stakeFinished);
     event NFTIssued(uint256 _stakeId, uint256 nftId);
     event NFTRedeemed(uint256 _stakeId, uint256 nftId);
 
@@ -129,7 +131,9 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
             true,
             0,
             (tokensToMint - fee),
-            fee
+            fee,
+            0,
+            0
         );
 
         // Mint NFT if requested
@@ -142,14 +146,11 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         return stakes[stakeCount];
     }
 
-    function retrieveStakeInfo(uint256 _id, bool _isNFT)
-        internal
-        returns (
-            uint256,
-            address,
-            StakeStruct memory
-        )
-    {
+    function unstake(
+        uint256 _id,
+        bool _isNFT,
+        uint256 _fTokenToBurn
+    ) external nonReentrant {
         StakeStruct memory p;
         uint256 stakeId;
         address returnAddress;
@@ -171,29 +172,57 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
             require(p.nftId == 0, "NFT TOKEN REQUIRED");
             require(p.stakerAddress == msg.sender, "NOT OWNER OF STAKE");
         }
-
-        return (stakeId, returnAddress, p);
-    }
-
-    function unstake(uint256 _id, bool _isNFT) external nonReentrant {
-        StakeStruct memory p;
-        uint256 stakeId;
-        address returnAddress;
-        (stakeId, returnAddress, p) = retrieveStakeInfo(_id, _isNFT);
         require(p.active == true, "STAKE NON-EXISTENT");
 
-        require(block.timestamp > (p.stakeStartTs + p.stakeDuration), "STAKE NOT EXPIRED");
+        uint256 principalToReturn;
+        uint256 percentageIntoStake = (((block.timestamp - p.stakeStartTs) * (10**18)) / p.stakeDuration);
 
-        // Remove tokens from Strategy
-        IFlashStrategy(p.strategyAddress).withdrawPrincipal(p.stakedAmount);
+        if (percentageIntoStake >= (10**18)) {
+            // Stake has ended, simply return principal
+            principalToReturn = p.stakedAmount - p.totalStakedWithdrawn;
+            emit Unstaked(stakeId, principalToReturn, 0, true);
 
-        // Transfer tokens back to user
-        IERC20C(strategies[p.strategyAddress].principalTokenAddress).transfer(returnAddress, p.stakedAmount);
+            delete stakes[stakeId];
+        } else {
+            require(block.timestamp >= (p.stakeStartTs + 3600), "MINIMUM STAKE DURATION IS 1 HOUR");
 
-        emit Unstaked(stakeId, false, p.stakedAmount, 0);
+            // Stake has not ended yet, user is trying to withdraw early
+            uint256 fTokenBurnForFullUnstake = ((((10**18) - percentageIntoStake) * (p.fTokensToUser + p.fTokensFee)) /
+                (10**18)) - p.totalFTokenBurned;
+            bool stakeFinished;
 
-        // Delete the stake data (which also sets active to false)
-        delete stakes[stakeId];
+            // Ensure the user cannot burn more fTokens than required
+            if (_fTokenToBurn > fTokenBurnForFullUnstake) {
+                _fTokenToBurn = fTokenBurnForFullUnstake;
+            }
+
+            // Is the user trying to withdraw everything early?
+            if (_fTokenToBurn == fTokenBurnForFullUnstake) {
+                // Yes, return all principal
+                principalToReturn = p.stakedAmount - p.totalStakedWithdrawn;
+                stakeFinished = true;
+            } else {
+                // No - only a partial withdraw
+                principalToReturn =
+                    (((_fTokenToBurn * (10**18)) / (p.fTokensToUser + p.fTokensFee)) * p.stakedAmount) /
+                    (10**18);
+            }
+
+            // Burn these fTokens
+            FlashFToken(strategies[p.strategyAddress].fTokenAddress).burnFrom(msg.sender, _fTokenToBurn);
+
+            // Update stake information
+            stakes[stakeId].totalFTokenBurned = p.totalFTokenBurned + _fTokenToBurn;
+            stakes[stakeId].totalStakedWithdrawn = p.totalStakedWithdrawn + principalToReturn;
+
+            emit Unstaked(stakeId, principalToReturn, _fTokenToBurn, stakeFinished);
+        }
+        require(principalToReturn > 0, "NO PRINCIPAL TO RETURN");
+        require(p.stakedAmount >= stakes[stakeId].totalStakedWithdrawn, "UNABLE TO WITHDRAW MORE THAN STAKED");
+
+        // Remove tokens from Strategy and transfer to user
+        IFlashStrategy(p.strategyAddress).withdrawPrincipal(principalToReturn);
+        IERC20C(strategies[p.strategyAddress].principalTokenAddress).transfer(returnAddress, principalToReturn);
     }
 
     function issueNFT(uint256 _stakeId) public returns (uint256) {
@@ -220,34 +249,6 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         require(_feePercentageBasis <= 2000, "MINT FEE TOO HIGH");
         globalMintFeeRecipient = _feeRecipient;
         globalMintFee = _feePercentageBasis;
-    }
-
-    function unstakeEarly(uint256 _id, bool _isNFT) external nonReentrant {
-        StakeStruct memory p;
-        uint256 stakeId;
-        address returnAddress;
-        (stakeId, returnAddress, p) = retrieveStakeInfo(_id, _isNFT);
-        require(p.active == true, "STAKE NON-EXISTENT");
-
-        uint256 secondsLeft = (p.stakeStartTs + p.stakeDuration) - block.timestamp;
-        require(p.stakeDuration - secondsLeft >= 60, "MINIMUM STAKE DURATION IS 60 SECONDS");
-
-        uint256 percentageToBurn = (secondsLeft * (10**18)) / p.stakeDuration;
-        uint256 fTokenBurnAmount = ((p.fTokensToUser + p.fTokensFee) * percentageToBurn) / (10**18);
-
-        // Burn these fTokens
-        FlashFToken(getFTokenAddress(p.strategyAddress)).burnFrom(msg.sender, fTokenBurnAmount);
-
-        // Withdraw the principal and return to the user
-        IFlashStrategy(p.strategyAddress).withdrawPrincipal(p.stakedAmount);
-
-        // Transfer tokens back to user
-        IERC20C(strategies[p.strategyAddress].principalTokenAddress).transfer(returnAddress, p.stakedAmount);
-
-        emit Unstaked(stakeId, false, p.stakedAmount, fTokenBurnAmount);
-
-        // Delete the stake data (which also sets active to false)
-        delete stakes[stakeId];
     }
 
     function getFTokenAddress(address _strategyAddress) public view returns (address) {

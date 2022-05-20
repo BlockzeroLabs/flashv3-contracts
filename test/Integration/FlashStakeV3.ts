@@ -96,7 +96,7 @@ describe("Flashstake Tests", function () {
     ).to.be.revertedWith("UNREGISTERED STRATEGY");
   });
 
-  it("should fail when staking for 59 seconds with error MINIMUM STAKE DURATION IS 60 SECONDS", async function () {
+  it("should fail when staking for 59 seconds with error MINIMUM STAKE DURATION IS 1 HOUR", async function () {
     const _amount = BigNumber.from(1000).mul(multiplier);
     const _duration = 59; // 365 days in seconds
 
@@ -156,12 +156,8 @@ describe("Flashstake Tests", function () {
     expect(stakeInfo.active).to.be.true;
   });
 
-  it("should fail when unstaking as account 1 with error STAKE NOT EXPIRED", async function () {
-    await expect(protocolContract.connect(signers[1]).unstake(1, false)).to.be.revertedWith("STAKE NOT EXPIRED");
-  });
-
   it("should fail when unstaking as account 2 with error NOT OWNER OF STAKE", async function () {
-    await expect(protocolContract.connect(signers[2]).unstake(1, false)).to.be.revertedWith("NOT OWNER OF STAKE");
+    await expect(protocolContract.connect(signers[2]).unstake(1, false, 0)).to.be.revertedWith("NOT OWNER OF STAKE");
   });
 
   it("(1) should unstake as account 1 after 365 days", async function () {
@@ -179,7 +175,7 @@ describe("Flashstake Tests", function () {
     const oldBalance = await daiContract.balanceOf(signers[1].address);
     const expectedBalance = oldBalance.add(BigNumber.from(1000).mul(multiplier));
 
-    await protocolContract.connect(signers[1]).unstake(1, false);
+    await protocolContract.connect(signers[1]).unstake(1, false, 0);
     const newBalance = await daiContract.balanceOf(signers[1].address);
     expect(newBalance).to.be.eq(expectedBalance);
   });
@@ -216,13 +212,16 @@ describe("Flashstake Tests", function () {
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore
     const args = (receipt.events?.filter(x => {
-      return x.event == "Staked";
+      return x.event == "NFTIssued";
     }))[0]["args"];
     // @ts-ignore
     const stakeId = args["_stakeId"];
+    // @ts-ignore
+    const nftId = args["nftId"];
+    console.log("stakeId", stakeId, "nftId", nftId);
 
-    // Lookup fTokenMinted from the contract
-    const stakeInfo = await protocolContract.getStakeInfo(stakeId, false);
+    // Lets lookup using the nft too
+    const stakeInfo = await protocolContract.getStakeInfo(nftId, true);
 
     const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
     expect(await fTokenContract.balanceOf(signers[2].address)).to.be.eq(stakeInfo.fTokensToUser);
@@ -251,13 +250,13 @@ describe("Flashstake Tests", function () {
     await hre.network.provider.send("evm_setNextBlockTimestamp", [newTs]);
     await hre.network.provider.send("evm_mine");
 
-    await expect(protocolContract.connect(signers[2]).unstake(2, false)).to.be.revertedWith("NFT TOKEN REQUIRED");
+    await expect(protocolContract.connect(signers[2]).unstake(2, false, 0)).to.be.revertedWith("NFT TOKEN REQUIRED");
   });
 
   it("should fail when account 2 attempts to unstake with invalid nft ID with error NFT FOR STAKE NON-EXISTENT", async function () {
     // We don't need to increase the EVM ts because we did that in the last test
 
-    await expect(protocolContract.connect(signers[2]).unstake(100, true)).to.be.revertedWith(
+    await expect(protocolContract.connect(signers[2]).unstake(100, true, 0)).to.be.revertedWith(
       "NFT FOR STAKE NON-EXISTENT",
     );
   });
@@ -265,7 +264,7 @@ describe("Flashstake Tests", function () {
   it("should fail when account 6 attempts to unstake with NFT ID they do not own", async function () {
     // We don't need to increase the EVM ts because we did that in the last test
 
-    await expect(protocolContract.connect(signers[6]).unstake(100, true)).to.be.revertedWith(
+    await expect(protocolContract.connect(signers[6]).unstake(100, true, 0)).to.be.revertedWith(
       "NFT FOR STAKE NON-EXISTENT",
     );
   });
@@ -273,7 +272,7 @@ describe("Flashstake Tests", function () {
   it("should fail when account 6 attempts to unstake NFT they do not own with error NOT OWNER OF NFT", async function () {
     // We don't need to increase the EVM ts because we did that in the last test
 
-    await expect(protocolContract.connect(signers[6]).unstake(1, true)).to.be.revertedWith("NOT OWNER OF NFT");
+    await expect(protocolContract.connect(signers[6]).unstake(1, true, 0)).to.be.revertedWith("NOT OWNER OF NFT");
   });
 
   it("should unstake with NFT as account 3 and receive initial principal", async function () {
@@ -285,7 +284,7 @@ describe("Flashstake Tests", function () {
     const expectedBalance = oldBalance.add(BigNumber.from(2000).mul(multiplier));
 
     // Here we are specifying the NFT ID and not the Stake ID (hence 1)
-    await protocolContract.connect(signers[3]).unstake(1, true);
+    await protocolContract.connect(signers[3]).unstake(1, true, 0);
     const newBalance = await daiContract.balanceOf(signers[3].address);
     expect(newBalance).to.be.eq(expectedBalance);
   });
@@ -364,7 +363,7 @@ describe("Flashstake Tests", function () {
 
   it("should unstake early from account 3 (not using NFT) and burn 750.000000384000000000 fTokens", async function () {
     // Perform the early unstake
-    const result = await protocolContract.connect(signers[3]).unstakeEarly(3, false);
+    const result = await protocolContract.connect(signers[3]).unstake(3, false, "750000000384000000000");
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
@@ -501,7 +500,7 @@ describe("Flashstake Tests", function () {
   });
 
   it("should fail when unstaking as account 2 with error NOT OWNER OF STAKE", async function () {
-    await expect(protocolContract.connect(signers[2]).unstakeEarly(5, false)).to.be.revertedWith("NOT OWNER OF STAKE");
+    await expect(protocolContract.connect(signers[2]).unstake(5, false, 0)).to.be.revertedWith("NOT OWNER OF STAKE");
   });
 
   it("should fail when issuing nft as account 2 with error NOT OWNER OF STAKE", async function () {
@@ -531,7 +530,7 @@ describe("Flashstake Tests", function () {
   it("should fail when account 2 attempts to unstakeEarly with invalid nft ID with error NFT FOR STAKE NON-EXISTENT", async function () {
     // We don't need to increase the EVM ts because we did that in the last test
 
-    await expect(protocolContract.connect(signers[2]).unstakeEarly(100, true)).to.be.revertedWith(
+    await expect(protocolContract.connect(signers[2]).unstake(100, true, 0)).to.be.revertedWith(
       "NFT FOR STAKE NON-EXISTENT",
     );
   });
@@ -539,11 +538,11 @@ describe("Flashstake Tests", function () {
   it("should fail when account 2 attempts to unstake NFT they do not own with error NOT OWNER OF NFT", async function () {
     // We don't need to increase the EVM ts because we did that in the last test
 
-    await expect(protocolContract.connect(signers[2]).unstakeEarly(2, true)).to.be.revertedWith("NOT OWNER OF NFT");
+    await expect(protocolContract.connect(signers[2]).unstake(2, true, 0)).to.be.revertedWith("NOT OWNER OF NFT");
   });
 
   it("should fail when account 2 attempts to unstakeEarly (without NFT) with error NFT TOKEN REQUIRED", async function () {
-    await expect(protocolContract.connect(signers[2]).unstakeEarly(5, false)).to.be.revertedWith("NFT TOKEN REQUIRED");
+    await expect(protocolContract.connect(signers[2]).unstake(5, false, 0)).to.be.revertedWith("NFT TOKEN REQUIRED");
   });
 
   it("should fail unstaking early with nft with error MINIMUM STAKE DURATION IS 60 SECONDS", async function () {
@@ -552,8 +551,8 @@ describe("Flashstake Tests", function () {
     await fTokenContract.connect(signers[5]).approve(protocolContract.address, BigNumber.from(1000000).mul(multiplier));
 
     // Perform the early unstake
-    await expect(protocolContract.connect(signers[5]).unstakeEarly(2, true)).to.be.revertedWith(
-      "MINIMUM STAKE DURATION IS 60 SECONDS",
+    await expect(protocolContract.connect(signers[5]).unstake(2, true, 0)).to.be.revertedWith(
+      "MINIMUM STAKE DURATION IS 1 HOUR",
     );
   });
 
@@ -578,7 +577,7 @@ describe("Flashstake Tests", function () {
 
   it("should unstake early from account 5 (using NFT) and burn 5000.00000256 fTokens", async function () {
     // Perform the early unstake
-    const result = await protocolContract.connect(signers[5]).unstakeEarly(2, true);
+    const result = await protocolContract.connect(signers[5]).unstake(2, true, "5000000002560000000000");
 
     // Determine how many yield tokens we got back via event
     let receipt: ContractReceipt = await result.wait();
