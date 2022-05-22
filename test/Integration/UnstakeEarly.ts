@@ -1,6 +1,6 @@
 import hre from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import { FlashNFT, FlashProtocol, FlashStrategyAAVEv2 } from "../../typechain";
+import { FlashFTokenFactory, FlashNFT, FlashProtocol, FlashStrategyAAVEv2 } from "../../typechain";
 import { Artifact } from "hardhat/types";
 import { expect } from "chai";
 import { BigNumber, ContractReceipt, ethers } from "ethers";
@@ -51,10 +51,17 @@ describe("Flashstake Tests", function () {
     const nftArtifact: Artifact = await hre.artifacts.readArtifact("FlashNFT");
     const nftContract = <FlashNFT>await deployContract(signers[0], nftArtifact);
 
+    // 0.1. Deploy the Flash FToken Factory contract
+    const fTokenFactoryArtifact: Artifact = await hre.artifacts.readArtifact("FlashFTokenFactory");
+    const fTokenFactoryContract = <FlashFTokenFactory>await deployContract(signers[0], fTokenFactoryArtifact);
+
     // 1. Deploy the Flash Protocol contract
     const protocolArtifact: Artifact = await hre.artifacts.readArtifact("FlashProtocol");
-    protocolContract = <FlashProtocol>await deployContract(signers[0], protocolArtifact, [nftContract.address]);
+    protocolContract = <FlashProtocol>(
+      await deployContract(signers[0], protocolArtifact, [nftContract.address, fTokenFactoryContract.address])
+    );
     await nftContract.transferOwnership(protocolContract.address);
+    await fTokenFactoryContract.transferOwnership(protocolContract.address);
 
     // 2. Deploy the Flash AAVEv2 Strategy
     const lendingPoolAddress = "0xE0fBa4Fc209b4948668006B2bE61711b7f465bAe";
@@ -322,7 +329,7 @@ describe("Flashstake Tests", function () {
     );
 
     console.log(
-      "\t(3) Step 1 ACTUAL: ",
+      "\t(3) Step 2 ACTUAL: ",
       percentageIntoStake * 100,
       "% into stake,",
       "withdraw",

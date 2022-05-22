@@ -2,6 +2,8 @@ import { task } from "hardhat/config";
 import { TaskArguments } from "hardhat/types";
 
 import {
+  FlashFTokenFactory,
+  FlashFTokenFactory__factory,
   FlashNFT,
   FlashNFT__factory,
   FlashProtocol,
@@ -49,18 +51,28 @@ task("deploy:FlashNFT").setAction(async function (taskArguments: TaskArguments, 
   console.log("-> FlashV3 NFT Deployed to", nftToken.address);
 });
 
+task("deploy:FlashFTokenFactory").setAction(async function (taskArguments: TaskArguments, { ethers }) {
+  const [wallet1] = await ethers.getSigners();
+
+  console.log("Deploying Flash FTokenContractFactory");
+  const flashV3fTokenFactory: FlashFTokenFactory__factory = await ethers.getContractFactory("FlashFTokenFactory");
+  const flashV3FTokenContract: FlashFTokenFactory = <FlashFTokenFactory>(
+    await flashV3fTokenFactory.connect(wallet1).deploy()
+  );
+  await flashV3FTokenContract.connect(wallet1).deployed();
+  console.log("-> Flash FTokenContractFactory Deployed to", flashV3FTokenContract.address);
+});
+
 task("deploy:FlashProtocol")
   .addParam("nftaddress", "The Flash NFT address")
+  .addParam("flashftokenfactory", "The Flash FToken Factory address")
   .setAction(async function (taskArguments: TaskArguments, { ethers }) {
     const [wallet1] = await ethers.getSigners();
-
-    // Retrieve the Flash NFT contract obj
-    const nftToken: FlashNFT = <FlashNFT>await ethers.getContractAt("FlashNFT", taskArguments.nftaddress);
 
     console.log("Deploying Flash V3 Protocol");
     const flashV3ProtocolFactory: FlashProtocol__factory = await ethers.getContractFactory("FlashProtocol");
     const flashV3Protocol: FlashProtocol = <FlashProtocol>(
-      await flashV3ProtocolFactory.connect(wallet1).deploy(nftToken.address)
+      await flashV3ProtocolFactory.connect(wallet1).deploy(taskArguments.nftaddress, taskArguments.flashftokenfactory)
     );
     await flashV3Protocol.connect(wallet1).deployed();
     console.log("-> Flash V3 Protocol Deployed to", flashV3Protocol.address);
@@ -82,6 +94,21 @@ task("deploy:TransferNFTOwnership")
     console.log("Transferring ownership of NFT to Flash Protocol");
     // Transfer ownership of nft to protocol
     await nftToken.connect(wallet1).transferOwnership(taskArguments.flashprotocoladdress);
+    console.log("-> Done");
+  });
+
+task("deploy:TransferFactoryOwnership")
+  .addParam("factoryaddress", "The Flash F Token factory address")
+  .addParam("flashprotocoladdress", "The Flash protocol address")
+  .setAction(async function (taskArguments: TaskArguments, { ethers }) {
+    const [wallet1] = await ethers.getSigners();
+
+    const factoryContract: FlashFTokenFactory = <FlashFTokenFactory>(
+      await ethers.getContractAt("FlashFTokenFactory", taskArguments.factoryaddress)
+    );
+
+    console.log("Transferring ownership of factory to Flash Protocol");
+    await factoryContract.connect(wallet1).transferOwnership(taskArguments.flashprotocoladdress);
     console.log("-> Done");
   });
 
@@ -153,19 +180,25 @@ npx hardhat deploy:SendAllFlashTokens --network kovan --tokenaddress <flash toke
 // 3. Deploy the Flash NFT
 npx hardhat deploy:FlashNFT --network kovan
 
-// 4. Deploy the FlashProtocol
-npx hardhat deploy:FlashProtocol --network kovan --nftaddress xx
+// 4. Deploy the Flash FToken Factory
+npx hardhat deploy:FlashFTokenFactory --network kovan
 
-// 5. Transfer the ownership of Flash NFT to Flash protocol
+// 5. Deploy the FlashProtocol
+npx hardhat deploy:FlashProtocol --network kovan --nftaddress xx --flashftokenfactory xx
+
+// 6. Transfer the ownership of Flash NFT to Flash protocol
 npx hardhat deploy:TransferNFTOwnership --network kovan --nftaddress <nftaddress> --flashprotocoladdress <flash protocol address>
 
-// 6. Deploy flash strategy (AAVE v2)
+// 7 Transfer the ownership of Flash FToken to flash protocol
+npx hardhat deploy:TransferFactoryOwnership --network kovan --factoryaddress xx --flashprotocoladdress <flash protocol address>
+
+// 8. Deploy flash strategy (AAVE v2)
 npx hardhat deploy:FlashAAVEStrategy --network kovan --pooladdress xxx --principaltokenaddress xxx --interestbearingtokenaddresses xx --flashprotocoladdress xx
 
-// 7. Register the new strategy against the Flashstake protocol
+// 9. Register the new strategy against the Flashstake protocol
 npx hardhat deploy:RegisterStrategy --network kovan --flashprotocoladdress xxx --strategyaddress xxx --principaltokenaddress xxx --ftokenname fDAI --ftokensymbol fDAI
 
-// 8. Verify all the contracts
+// 10. Verify all the contracts
 npx hardhat verify --network kovan <contractAddress>
 
 */
