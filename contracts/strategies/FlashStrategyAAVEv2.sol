@@ -11,10 +11,10 @@ import "../interfaces/IFlashStrategy.sol";
 contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
     using SafeMath for uint256;
 
-    address immutable flashProtocolAddress;
-    address immutable lendingPoolAddress; // The AAVE V2 lending pool address
-    address immutable principalTokenAddress; // The Principal token address (eg DAI)
-    address immutable interestBearingTokenAddress; // The AAVE V2 interest bearing token address
+    address flashProtocolAddress;
+    address lendingPoolAddress; // The AAVE V2 lending pool address
+    address principalTokenAddress; // The Principal token address (eg DAI)
+    address interestBearingTokenAddress; // The AAVE V2 interest bearing token address
 
     address fTokenAddress; // The Flash fERC20 token address
     uint16 referralCode = 0; // The AAVE V2 referral code

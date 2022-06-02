@@ -2,6 +2,8 @@ import { task } from "hardhat/config";
 import { TaskArguments } from "hardhat/types";
 
 import {
+  FlashBack,
+  FlashBack__factory,
   FlashFTokenFactory,
   FlashFTokenFactory__factory,
   FlashNFT,
@@ -166,6 +168,20 @@ task("deploy:RegisterStrategy")
     console.log("-> Strategy registered");
   });
 
+task("deploy:FlashBack")
+  .addParam("flashtokenaddress", "The Flash token address")
+  .setAction(async function (taskArguments: TaskArguments, { ethers }) {
+    const [wallet1] = await ethers.getSigners();
+
+    console.log("Deploying FlashBack Contract");
+    const flashBackFactory: FlashBack__factory = await ethers.getContractFactory("FlashBack");
+    const flashBack: FlashBack = <FlashBack>(
+      await flashBackFactory.connect(wallet1).deploy(taskArguments.flashtokenaddress)
+    );
+    await flashBack.deployed();
+    console.log("-> FlashBack Contract Deployed", flashBack.address);
+  });
+
 /*
   =============================
   Steps to deploy:
@@ -189,7 +205,7 @@ npx hardhat deploy:FlashProtocol --network kovan --nftaddress xx --flashftokenfa
 // 6. Transfer the ownership of Flash NFT to Flash protocol
 npx hardhat deploy:TransferNFTOwnership --network kovan --nftaddress <nftaddress> --flashprotocoladdress <flash protocol address>
 
-// 7 Transfer the ownership of Flash FToken to flash protocol
+// 7 Transfer the ownership of Flash FToken Factory to flash protocol
 npx hardhat deploy:TransferFactoryOwnership --network kovan --factoryaddress xx --flashprotocoladdress <flash protocol address>
 
 // 8. Deploy flash strategy (AAVE v2)
@@ -198,7 +214,10 @@ npx hardhat deploy:FlashAAVEStrategy --network kovan --pooladdress xxx --princip
 // 9. Register the new strategy against the Flashstake protocol
 npx hardhat deploy:RegisterStrategy --network kovan --flashprotocoladdress xxx --strategyaddress xxx --principaltokenaddress xxx --ftokenname fDAI --ftokensymbol fDAI
 
-// 10. Verify all the contracts
+// 10. Deploy the FlashBack contract
+npx hardhat deploy:FlashBack --network kovan --flashtokenaddress xx
+
+// 11. Verify all the contracts
 npx hardhat verify --network kovan <contractAddress>
 
 */
