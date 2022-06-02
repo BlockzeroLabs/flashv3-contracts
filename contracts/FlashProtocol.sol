@@ -188,8 +188,15 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
 
             // Stake has not ended yet, user is trying to withdraw early
             uint256 fTokenBurnForFullUnstake = ((((10**18) - percentageIntoStake) * (p.fTokensToUser + p.fTokensFee)) /
-                (10**18)) - p.totalFTokenBurned;
+                (10**18));
             bool stakeFinished;
+
+            if (p.totalFTokenBurned > fTokenBurnForFullUnstake) {
+                // The total number of fTokens burned is greater than the amount required, no burn required
+                fTokenBurnForFullUnstake = 0;
+            } else {
+                fTokenBurnForFullUnstake = fTokenBurnForFullUnstake - p.totalFTokenBurned;
+            }
 
             // Ensure the user cannot burn more fTokens than required
             if (_fTokenToBurn > fTokenBurnForFullUnstake) {
