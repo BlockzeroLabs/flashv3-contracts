@@ -5,30 +5,31 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../interfaces/IERC20C.sol";
 import "../interfaces/AAVE/ILendingPool.sol";
+import "../interfaces/AAVE/IAaveIncentivesController.sol";
 import "../interfaces/IFlashStrategy.sol";
 
 contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
     using SafeMath for uint256;
 
     address flashProtocolAddress;
-    address fTokenAddress; // The Flash fERC20 token address
     address lendingPoolAddress; // The AAVE V2 lending pool address
     address principalTokenAddress; // The Principal token address (eg DAI)
     address interestBearingTokenAddress; // The AAVE V2 interest bearing token address
+
+    address fTokenAddress; // The Flash fERC20 token address
     uint16 referralCode = 0; // The AAVE V2 referral code
     uint256 principalBalance; // The amount of principal in this strategy
+    address aaveIncentivesAddress = 0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5;
 
     event BurnedFToken(address indexed _address, uint256 _tokenAmount, uint256 _yieldReturned);
     event RewardClaimed(address _rewardToken, address indexed _address);
-
-    mapping(address => uint256) public fTokensBurned;
 
     // User incentive reward related
     uint256 public rewardTokenBalance;
     address public rewardTokenAddress;
     uint256 public rewardLockoutTs;
     uint256 public rewardRatio;
-    uint256 rewardLockoutConstant = 7257600; // 84 days in seconds
+    uint256 constant rewardLockoutConstant = 7257600; // 84 days in seconds
 
     constructor(
         address _lendingPoolAddress,
@@ -46,10 +47,10 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
 
     // Implemented as a separate function just in case the strategy ever runs out of allowance
     function increaseAllowance() public {
-        IERC20C(principalTokenAddress).approve(lendingPoolAddress, 2**256 - 1);
+        IERC20C(principalTokenAddress).approve(lendingPoolAddress, type(uint256).max);
     }
 
-    function depositPrincipal(uint256 _tokenAmount) public onlyFlashProtocol returns (uint256) {
+    function depositPrincipal(uint256 _tokenAmount) external override onlyAuthorised returns (uint256) {
         // Register how much we are depositing
         principalBalance = principalBalance + _tokenAmount;
 
@@ -67,7 +68,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         require(aTokenBalance >= getPrincipalBalance(), "PRINCIPAL BALANCE INVALID");
     }
 
-    function withdrawPrincipal(uint256 _tokenAmount) public onlyFlashProtocol {
+    function withdrawPrincipal(uint256 _tokenAmount) external override onlyAuthorised {
         // Withdraw from AAVE
         ILendingPool(lendingPoolAddress).withdraw(principalTokenAddress, _tokenAmount, address(this));
 
@@ -76,7 +77,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         principalBalance = principalBalance - _tokenAmount;
     }
 
-    function withdrawERC20(address[] memory _tokenAddresses, uint256[] memory _tokenAmounts) public onlyOwner {
+    function withdrawERC20(address[] calldata _tokenAddresses, uint256[] calldata _tokenAmounts) external onlyOwner {
         require(_tokenAddresses.length == _tokenAmounts.length, "ARRAY SIZE MISMATCH");
 
         for (uint256 i = 0; i < _tokenAddresses.length; i++) {
@@ -89,31 +90,30 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         }
     }
 
-    function getPrincipalBalance() public view returns (uint256) {
+    function getPrincipalBalance() public view override returns (uint256) {
         return principalBalance;
     }
 
-    function getYieldBalance() public view returns (uint256) {
+    function getYieldBalance() public view override returns (uint256) {
         uint256 interestBearingTokenBalance = IERC20C(interestBearingTokenAddress).balanceOf(address(this));
-        uint256 principalBootstrapBalance = IERC20C(principalTokenAddress).balanceOf(address(this));
 
-        return (interestBearingTokenBalance - getPrincipalBalance()) + principalBootstrapBalance;
+        return (interestBearingTokenBalance - getPrincipalBalance());
     }
 
-    function getPrincipalAddress() public view returns (address) {
+    function getPrincipalAddress() external view override returns (address) {
         return principalTokenAddress;
     }
 
-    function getFTokenAddress() public view returns (address) {
+    function getFTokenAddress() external view returns (address) {
         return fTokenAddress;
     }
 
-    function setFTokenAddress(address _fTokenAddress) public onlyFlashProtocol {
+    function setFTokenAddress(address _fTokenAddress) external override onlyAuthorised {
         require(fTokenAddress == address(0), "FTOKEN ADDRESS ALREADY SET");
         fTokenAddress = _fTokenAddress;
     }
 
-    function quoteMintFToken(uint256 _tokenAmount, uint256 _duration) public view returns (uint256) {
+    function quoteMintFToken(uint256 _tokenAmount, uint256 _duration) external pure override returns (uint256) {
         // Enforce minimum _duration
         require(_duration >= 60, "DURATION TOO LOW");
 
@@ -125,7 +125,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         return amountToMint;
     }
 
-    function quoteBurnFToken(uint256 _tokenAmount) public view returns (uint256) {
+    function quoteBurnFToken(uint256 _tokenAmount) public view override returns (uint256) {
         uint256 totalSupply = IERC20C(fTokenAddress).totalSupply();
         require(totalSupply > 0, "INSUFFICIENT fERC20 TOKEN SUPPLY");
 
@@ -140,7 +140,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         uint256 _tokenAmount,
         uint256 _minimumReturned,
         address _yieldTo
-    ) external returns (uint256) {
+    ) external override returns (uint256) {
         // Calculate how much yield to give back
         uint256 tokensOwed = quoteBurnFToken(_tokenAmount);
         require(tokensOwed >= _minimumReturned, "INSUFFICIENT OUTPUT");
@@ -148,20 +148,8 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         // Transfer fERC20 (from caller) tokens to contract so we can burn them
         IERC20C(fTokenAddress).burnFrom(msg.sender, _tokenAmount);
 
-        // Update the total
-        fTokensBurned[msg.sender] += _tokenAmount;
-
-        // Can we pay all of this yield via the bootstrapped tokens
-        uint256 bootstrapBalance = IERC20C(principalTokenAddress).balanceOf(address(this));
-        if (bootstrapBalance >= tokensOwed) {
-            IERC20C(principalTokenAddress).transfer(_yieldTo, tokensOwed);
-        } else {
-            uint256 amountToWithdraw = remainderSubtract(tokensOwed, bootstrapBalance);
-            uint256 bootstrapPayment = tokensOwed - amountToWithdraw;
-
-            withdrawYield(amountToWithdraw);
-            IERC20C(principalTokenAddress).transfer(_yieldTo, (amountToWithdraw + bootstrapPayment));
-        }
+        withdrawYield(tokensOwed);
+        IERC20C(principalTokenAddress).transfer(_yieldTo, tokensOwed);
 
         // Distribute rewards if there is a reward balance within contract
         if (rewardTokenBalance > 0) {
@@ -173,17 +161,12 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         return tokensOwed;
     }
 
-    function remainderSubtract(uint256 a, uint256 b) public pure returns (uint256 remainder) {
-        if (b > a) return 0;
-        return a - b;
-    }
-
-    modifier onlyFlashProtocol() {
+    modifier onlyAuthorised() {
         require(msg.sender == flashProtocolAddress || msg.sender == address(this), "NOT FLASH PROTOCOL");
         _;
     }
 
-    function getMaxStakeDuration() public view returns (uint256) {
+    function getMaxStakeDuration() public pure override returns (uint256) {
         return 63072000; // Static 720 days (2 years)
     }
 
@@ -191,11 +174,11 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         address _rewardTokenAddress,
         uint256 _tokenAmount,
         uint256 _ratio
-    ) public onlyOwner {
-        require(block.timestamp > rewardLockoutTs, "LOCKOUT IN FORCE");
-
+    ) external onlyOwner {
         // Withdraw any reward tokens currently in contract and deposit new tokens
         if (rewardTokenBalance > 0) {
+            // Only enforce this check if the rewardTokenBalance <= 0
+            require(block.timestamp > rewardLockoutTs, "LOCKOUT IN FORCE");
             IERC20C(rewardTokenAddress).transfer(msg.sender, rewardTokenBalance);
         }
         IERC20C(_rewardTokenAddress).transferFrom(msg.sender, address(this), _tokenAmount);
@@ -207,7 +190,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         rewardTokenAddress = _rewardTokenAddress;
     }
 
-    function addRewardTokens(uint256 _tokenAmount) public onlyOwner {
+    function addRewardTokens(uint256 _tokenAmount) external onlyOwner {
         IERC20C(rewardTokenAddress).transferFrom(msg.sender, address(this), _tokenAmount);
         rewardLockoutTs = block.timestamp + rewardLockoutConstant;
 
@@ -215,7 +198,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         rewardTokenBalance = rewardTokenBalance + _tokenAmount;
     }
 
-    function setRewardRatio(uint256 _ratio) public onlyOwner {
+    function setRewardRatio(uint256 _ratio) external onlyOwner {
         // Ensure this can only be called whilst lockout is active
         require(rewardLockoutTs > block.timestamp, "LOCKOUT NOT IN FORCE");
 
@@ -236,7 +219,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         return rewardAmount;
     }
 
-    function claimReward(uint256 _fERC20Burned, address _yieldTo) internal {
+    function claimReward(uint256 _fERC20Burned, address _yieldTo) private {
         uint256 rewardAmount = quoteReward(_fERC20Burned);
 
         // Transfer and update balance locally
@@ -244,5 +227,9 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         rewardTokenBalance = rewardTokenBalance - rewardAmount;
 
         emit RewardClaimed(rewardTokenAddress, msg.sender);
+    }
+
+    function claimAAVEv2Rewards(address[] calldata _assets, uint256 _amount) external onlyOwner {
+        IAaveIncentivesController(aaveIncentivesAddress).claimRewards(_assets, _amount, address(this));
     }
 }
