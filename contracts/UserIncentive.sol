@@ -63,6 +63,9 @@ contract UserIncentive is IUserIncentive, Ownable {
     }
 
     function quoteReward(uint256 _fERC20Burned) public view returns (uint256) {
+        if (rewardRatio == 0) {
+            return 0;
+        }
         uint256 rewardAmount = (_fERC20Burned * rewardRatio) / (10**18);
 
         // If the reward amount is greater than balance, transfer entire balance
