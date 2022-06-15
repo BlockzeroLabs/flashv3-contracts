@@ -1,6 +1,13 @@
 import hre from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import { FlashFTokenFactory, FlashNFT, FlashProtocol, FlashStrategyAAVEv2, FlashToken } from "../../typechain";
+import {
+  FlashFTokenFactory,
+  FlashNFT,
+  FlashProtocol,
+  FlashStrategyAAVEv2,
+  FlashToken,
+  UserIncentive,
+} from "../../typechain";
 import { Artifact } from "hardhat/types";
 import { expect } from "chai";
 import { BigNumber, ContractReceipt, ethers } from "ethers";
@@ -16,6 +23,8 @@ describe("Flashstake Tests", function () {
   let protocolContract: FlashProtocol;
   let strategyContract: FlashStrategyAAVEv2;
   let flashTokenContract: FlashToken;
+
+  let userIncentiveContract: UserIncentive;
 
   let signers: SignerWithAddress[];
 
@@ -60,6 +69,20 @@ describe("Flashstake Tests", function () {
     //
 
     fTokenAddress = (await protocolContract.strategies(strategyContract.address)).fTokenAddress;
+  });
+
+  it("account 0 should deploy Flash Token contract", async function () {
+    const tokenArtifact: Artifact = await hre.artifacts.readArtifact("FlashToken");
+    flashTokenContract = <FlashToken>await deployContract(signers[0], tokenArtifact);
+  });
+
+  it("should deploy rewards contract and inform strategy", async function () {
+    const uiArtifact: Artifact = await hre.artifacts.readArtifact("UserIncentive");
+    userIncentiveContract = <UserIncentive>(
+      await deployContract(signers[0], uiArtifact, [strategyContract.address, 7257600])
+    );
+
+    await strategyContract.setUserIncentiveAddress(userIncentiveContract.address);
   });
 
   it("should ensure protocol reports correct fToken address for newly registered strategy", async function () {
@@ -633,14 +656,9 @@ describe("Flashstake Tests", function () {
     // be some DAI in the wallet again (the yield they generated during the flashstake)
   });
 
-  it("account 0 should deploy Flash Token contract", async function () {
-    const tokenArtifact: Artifact = await hre.artifacts.readArtifact("FlashToken");
-    flashTokenContract = <FlashToken>await deployContract(signers[0], tokenArtifact);
-  });
-
-  it("account 0 should approve spending of 150,000 Flash tokens against Strategy contract", async function () {
+  it("account 0 should approve spending of 150,000 Flash tokens against Rewards contract", async function () {
     const _amount = BigNumber.from(150000).mul(multiplier);
-    await flashTokenContract.connect(signers[0]).approve(strategyContract.address, _amount);
+    await flashTokenContract.connect(signers[0]).approve(userIncentiveContract.address, _amount);
   });
 
   it("non-owner should fail when depositing reward with error Ownable: caller is not the owner", async function () {
@@ -648,9 +666,9 @@ describe("Flashstake Tests", function () {
     const _amount = BigNumber.from(100000).mul(multiplier);
     const _ratio = ethers.utils.parseUnits("0.5", 18);
 
-    await expect(strategyContract.connect(signers[1]).depositReward(_tokenAddress, _amount, _ratio)).to.be.revertedWith(
-      "Ownable: caller is not the owner",
-    );
+    await expect(
+      userIncentiveContract.connect(signers[1]).depositReward(_tokenAddress, _amount, _ratio),
+    ).to.be.revertedWith("Ownable: caller is not the owner");
   });
 
   it("account 0 should deposit 100,000 FLASH rewards with a ratio of 0.5", async function () {
@@ -658,16 +676,16 @@ describe("Flashstake Tests", function () {
     const _amount = BigNumber.from(100000).mul(multiplier);
     const _ratio = ethers.utils.parseUnits("0.5", 18);
 
-    await strategyContract.depositReward(_tokenAddress, _amount, _ratio);
+    await userIncentiveContract.depositReward(_tokenAddress, _amount, _ratio);
   });
 
   it("account 0 should add additional 1,000 FLASH rewards", async function () {
     const _amount = BigNumber.from(1000).mul(multiplier);
-    await strategyContract.addRewardTokens(_amount);
+    await userIncentiveContract.addRewardTokens(_amount);
   });
 
   it("reward balance should be 101,000 FLASH", async function () {
-    expect(await strategyContract.rewardTokenBalance()).to.be.eq(BigNumber.from(101000).mul(multiplier));
+    expect(await userIncentiveContract.rewardTokenBalance()).to.be.eq(BigNumber.from(101000).mul(multiplier));
   });
 
   it("account 0 should fail when depositing new reward with error LOCKOUT IN FORCE", async function () {
@@ -675,9 +693,9 @@ describe("Flashstake Tests", function () {
     const _amount = BigNumber.from(1000).mul(multiplier);
     const _ratio = ethers.utils.parseUnits("0.5", 18);
 
-    await expect(strategyContract.connect(signers[0]).depositReward(_tokenAddress, _amount, _ratio)).to.be.revertedWith(
-      "LOCKOUT IN FORCE",
-    );
+    await expect(
+      userIncentiveContract.connect(signers[0]).depositReward(_tokenAddress, _amount, _ratio),
+    ).to.be.revertedWith("LOCKOUT IN FORCE");
   });
 
   it("should impersonate account 0xca4ad39f872e89ef23eabd5716363fc22513e147 and transfer 1,000 DAI to account 7", async function () {
@@ -752,12 +770,12 @@ describe("Flashstake Tests", function () {
 
   it("account 0 should fail changing ratio to 0.25 with error RATIO CAN ONLY BE INCREASED", async function () {
     const _ratio = ethers.utils.parseUnits("0.25", 18);
-    await expect(strategyContract.setRewardRatio(_ratio)).to.be.revertedWith("RATIO CAN ONLY BE INCREASED");
+    await expect(userIncentiveContract.setRewardRatio(_ratio)).to.be.revertedWith("RATIO CAN ONLY BE INCREASED");
   });
 
   it("account 0 should increase reward ratio to 0.75", async function () {
     const _ratio = ethers.utils.parseUnits("0.75", 18);
-    await strategyContract.setRewardRatio(_ratio);
+    await userIncentiveContract.setRewardRatio(_ratio);
   });
 
   it("account 7 should burn 10 fERC20 tokens and receive 7.5 FLASH tokens", async function () {
@@ -795,7 +813,7 @@ describe("Flashstake Tests", function () {
 
   it("account 0 should fail setting ratio when lockout period has ended with error LOCKOUT NOT IN FORCE", async function () {
     const _ratio = ethers.utils.parseUnits("0.1", 18);
-    await expect(strategyContract.setRewardRatio(_ratio)).to.be.revertedWith("LOCKOUT NOT IN FORCE");
+    await expect(userIncentiveContract.setRewardRatio(_ratio)).to.be.revertedWith("LOCKOUT NOT IN FORCE");
   });
 
   it("account 0 should deposit 1,000 FLASH @ 1.5 ratio", async function () {
@@ -803,13 +821,13 @@ describe("Flashstake Tests", function () {
     const oldRewardBalance = await flashTokenContract.balanceOf(signers[0].address);
 
     // Determine how many reward tokens are in contract that we expect to get back
-    const contractRewardBalance = await strategyContract.rewardTokenBalance();
+    const contractRewardBalance = await userIncentiveContract.rewardTokenBalance();
 
     const _tokenAddress = flashTokenContract.address;
     const _amount = BigNumber.from(1000).mul(multiplier);
     const _ratio = ethers.utils.parseUnits("1.5", 18);
 
-    await strategyContract.depositReward(_tokenAddress, _amount, _ratio);
+    await userIncentiveContract.depositReward(_tokenAddress, _amount, _ratio);
 
     // Get the new Flash balance of account 0
     const newRewardBalance = await flashTokenContract.balanceOf(signers[0].address);
@@ -855,16 +873,16 @@ describe("Flashstake Tests", function () {
   });
 
   it("ensure reward token balance is 0 and owner can depositReward: 1000 Flash @ 1.5 ratio", async function () {
-    const oldRewardBalance = await strategyContract.rewardTokenBalance();
+    const oldRewardBalance = await userIncentiveContract.rewardTokenBalance();
     expect(oldRewardBalance).to.be.eq("0");
 
     const _tokenAddress = flashTokenContract.address;
     const _amount = BigNumber.from(1000).mul(multiplier);
     const _ratio = ethers.utils.parseUnits("1.5", 18);
 
-    await strategyContract.depositReward(_tokenAddress, _amount, _ratio);
+    await userIncentiveContract.depositReward(_tokenAddress, _amount, _ratio);
 
-    const newRewardBalance = await strategyContract.rewardTokenBalance();
+    const newRewardBalance = await userIncentiveContract.rewardTokenBalance();
     expect(newRewardBalance).to.be.eq(oldRewardBalance.add(_amount));
   });
 });
