@@ -275,6 +275,7 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         address _strategyAddress,
         uint256 _tokenAmount,
         uint256 _stakeDuration,
+        uint256 _minimumReceived,
         address _yieldTo,
         bool _mintNFT
     ) external nonReentrant {
@@ -284,11 +285,8 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         IERC20C fToken = IERC20C(strategies[_strategyAddress].fTokenAddress);
         fToken.transferFrom(msg.sender, address(this), fTokensMinted);
 
-        // Quote, approve, burn
-        uint256 quotedReturn = IFlashStrategy(_strategyAddress).quoteBurnFToken(fTokensMinted);
-
         // Approve, burn and send yield to specified address
         fToken.approve(_strategyAddress, fTokensMinted);
-        IFlashStrategy(_strategyAddress).burnFToken(fTokensMinted, quotedReturn, _yieldTo);
+        IFlashStrategy(_strategyAddress).burnFToken(fTokensMinted, _minimumReceived, _yieldTo);
     }
 }
