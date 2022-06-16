@@ -73,7 +73,7 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         string calldata _fTokenName,
         string calldata _fTokenSymbol
     ) external {
-        require(strategies[_strategyAddress].principalTokenAddress == address(0), "STRATEGY ALREADY REGISTERED");
+        require(strategies[_strategyAddress].principalTokenAddress == address(0));
 
         address flashFToken = IFlashFTokenFactory(flashFTokenFactoryAddress).createFToken(_fTokenName, _fTokenSymbol);
 
@@ -93,10 +93,11 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         address _fTokensTo,
         bool _issueNFT
     ) public returns (StakeStruct memory _stake) {
-        require(strategies[_strategyAddress].principalTokenAddress != address(0), "UNREGISTERED STRATEGY");
-
-        require(_stakeDuration >= 60, "MINIMUM STAKE DURATION IS 60 SECONDS");
-        require(_stakeDuration <= IFlashStrategy(_strategyAddress).getMaxStakeDuration(), "EXCEEDS MAX STAKE DURATION");
+        require(strategies[_strategyAddress].principalTokenAddress != address(0));
+        require(
+            _stakeDuration >= 60 && _stakeDuration <= IFlashStrategy(_strategyAddress).getMaxStakeDuration(),
+            "ISD"
+        );
 
         // Transfer the tokens from caller to the strategy contract
         IERC20C(strategies[_strategyAddress].principalTokenAddress).transferFrom(
@@ -158,8 +159,8 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
             stakeId = nftIdMappingsToStakeIds[_id];
             p = stakes[stakeId];
             returnAddress = msg.sender;
-            require(p.nftId == _id, "NFT FOR STAKE NON-EXISTENT");
-            require(IFlashNFT(flashNFTAddress).ownerOf(_id) == msg.sender, "NOT OWNER OF NFT");
+            require(p.nftId == _id, "SNM");
+            require(IFlashNFT(flashNFTAddress).ownerOf(_id) == msg.sender, "NNO");
 
             // Burn the NFT
             IFlashNFT(flashNFTAddress).burn(_id);
@@ -169,10 +170,10 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
             p = stakes[stakeId];
             returnAddress = p.stakerAddress;
 
-            require(p.nftId == 0, "NFT TOKEN REQUIRED");
-            require(p.stakerAddress == msg.sender, "NOT OWNER OF STAKE");
+            require(p.nftId == 0, "NTR");
+            require(p.stakerAddress == msg.sender, "NSO");
         }
-        require(p.active == true, "STAKE NON-EXISTENT");
+        require(p.active == true, "SNE");
 
         uint256 principalToReturn;
         uint256 percentageIntoStake = (((block.timestamp - p.stakeStartTs) * (10**18)) / p.stakeDuration);
@@ -184,7 +185,7 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
 
             delete stakes[stakeId];
         } else {
-            require(block.timestamp >= (p.stakeStartTs + 3600), "MINIMUM STAKE DURATION IS 1 HOUR");
+            require(block.timestamp >= (p.stakeStartTs + 3600), "MIN DUR 1HR");
 
             // Stake has not ended yet, user is trying to withdraw early
             uint256 fTokenBurnForFullUnstake = ((((10**18) - percentageIntoStake) * (p.fTokensToUser + p.fTokensFee)) /
@@ -224,8 +225,8 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
 
             emit Unstaked(stakeId, principalToReturn, _fTokenToBurn, stakeFinished);
         }
-        require(principalToReturn > 0, "NO PRINCIPAL TO RETURN");
-        require(p.stakedAmount >= stakes[stakeId].totalStakedWithdrawn, "UNABLE TO WITHDRAW MORE THAN STAKED");
+        require(principalToReturn > 0);
+        require(p.stakedAmount >= stakes[stakeId].totalStakedWithdrawn);
 
         // Remove tokens from Strategy and transfer to user
         IFlashStrategy(p.strategyAddress).withdrawPrincipal(principalToReturn);
@@ -236,9 +237,7 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
 
     function issueNFT(uint256 _stakeId) public returns (uint256 _nftId) {
         StakeStruct memory p = stakes[_stakeId];
-        require(p.active == true, "STAKE NON-EXISTENT");
-        require(p.nftId == 0, "NFT FOR STAKE ALREADY EXISTS");
-        require(p.stakerAddress == msg.sender, "NOT OWNER OF STAKE");
+        require(p.active == true && p.nftId == 0 && p.stakerAddress == msg.sender);
 
         // Mint the NFT
         uint256 nftId = IFlashNFT(flashNFTAddress).mint(msg.sender);
@@ -255,7 +254,7 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
     }
 
     function setMintFeeInfo(address _feeRecipient, uint96 _feePercentageBasis) external onlyOwner {
-        require(_feePercentageBasis <= 2000, "MINT FEE TOO HIGH");
+        require(_feePercentageBasis <= 2000);
         globalMintFeeRecipient = _feeRecipient;
         globalMintFee = _feePercentageBasis;
     }
@@ -264,7 +263,7 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         uint256 stakeId;
         if (_isNFT) {
             stakeId = nftIdMappingsToStakeIds[_id];
-            require(stakes[stakeId].nftId == _id, "NFT FOR STAKE NON-EXISTENT");
+            require(stakes[stakeId].nftId == _id);
         } else {
             stakeId = _id;
         }
