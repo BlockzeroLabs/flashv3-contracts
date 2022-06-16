@@ -12,15 +12,15 @@ import "../interfaces/IUserIncentive.sol";
 contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
     using SafeMath for uint256;
 
-    address flashProtocolAddress;
-    address lendingPoolAddress; // The AAVE V2 lending pool address
-    address principalTokenAddress; // The Principal token address (eg DAI)
-    address interestBearingTokenAddress; // The AAVE V2 interest bearing token address
+    address immutable flashProtocolAddress;
+    address immutable lendingPoolAddress; // The AAVE V2 lending pool address
+    address immutable principalTokenAddress; // The Principal token address (eg DAI)
+    address immutable interestBearingTokenAddress; // The AAVE V2 interest bearing token address
 
     address fTokenAddress; // The Flash fERC20 token address
     uint16 referralCode = 0; // The AAVE V2 referral code
     uint256 principalBalance; // The amount of principal in this strategy
-    address aaveIncentivesAddress = 0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5;
+    address constant aaveIncentivesAddress = 0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5;
 
     address public userIncentiveAddress;
 
@@ -127,7 +127,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
 
         // Calculate the percentage of _tokenAmount vs totalSupply provided
         // and multiply by total yield
-        return (totalYield * ((_tokenAmount * _tokenAmount) / totalSupply)) / _tokenAmount;
+        return (totalYield * _tokenAmount) / totalSupply;
     }
 
     function burnFToken(
@@ -137,7 +137,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
     ) external override returns (uint256) {
         // Calculate how much yield to give back
         uint256 tokensOwed = quoteBurnFToken(_tokenAmount);
-        require(tokensOwed >= _minimumReturned, "INSUFFICIENT OUTPUT");
+        require(tokensOwed >= _minimumReturned && tokensOwed > 0, "INSUFFICIENT OUTPUT");
 
         // Transfer fERC20 (from caller) tokens to contract so we can burn them
         IERC20C(fTokenAddress).burnFrom(msg.sender, _tokenAmount);

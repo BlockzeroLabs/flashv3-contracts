@@ -61,6 +61,7 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
     event Unstaked(uint256 _stakeId, uint256 _tokensReturned, uint256 _fTokensBurned, bool _stakeFinished);
     event NFTIssued(uint256 _stakeId, uint256 nftId);
     event NFTRedeemed(uint256 _stakeId, uint256 nftId);
+    event SetMintFeeInfo(address _feeRecipient, uint96 _feePercentageBasis);
 
     constructor(address _flashNFTAddress, address _flashFTokenFactoryAddress) public {
         flashNFTAddress = _flashNFTAddress;
@@ -92,7 +93,7 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         uint256 _stakeDuration,
         address _fTokensTo,
         bool _issueNFT
-    ) public returns (StakeStruct memory _stake) {
+    ) public nonReentrant returns (StakeStruct memory _stake) {
         require(strategies[_strategyAddress].principalTokenAddress != address(0));
         require(
             _stakeDuration >= 60 && _stakeDuration <= IFlashStrategy(_strategyAddress).getMaxStakeDuration(),
@@ -257,6 +258,8 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         require(_feePercentageBasis <= 2000);
         globalMintFeeRecipient = _feeRecipient;
         globalMintFee = _feePercentageBasis;
+
+        emit SetMintFeeInfo(_feeRecipient, _feePercentageBasis);
     }
 
     function getStakeInfo(uint256 _id, bool _isNFT) external view returns (StakeStruct memory _stake) {
@@ -278,7 +281,7 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         uint256 _minimumReceived,
         address _yieldTo,
         bool _mintNFT
-    ) external nonReentrant {
+    ) external {
         // Stake
         uint256 fTokensMinted = stake(_strategyAddress, _tokenAmount, _stakeDuration, _yieldTo, _mintNFT).fTokensToUser;
 
