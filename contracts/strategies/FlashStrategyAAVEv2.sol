@@ -4,13 +4,14 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../interfaces/AAVE/ILendingPool.sol";
 import "../interfaces/AAVE/IAaveIncentivesController.sol";
 import "../interfaces/IFlashStrategy.sol";
 import "../interfaces/IUserIncentive.sol";
 import "../interfaces/IFlashFToken.sol";
 
-contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
+contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     address immutable flashProtocolAddress;
@@ -135,7 +136,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         uint256 _tokenAmount,
         uint256 _minimumReturned,
         address _yieldTo
-    ) external override returns (uint256) {
+    ) external override nonReentrant returns (uint256) {
         // Calculate how much yield to give back
         uint256 tokensOwed = quoteBurnFToken(_tokenAmount);
         require(tokensOwed >= _minimumReturned && tokensOwed > 0, "INSUFFICIENT OUTPUT");
