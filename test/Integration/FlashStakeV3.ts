@@ -63,12 +63,26 @@ describe("Flashstake Tests", function () {
 
     // 3. Register this strategy with the Flash Protocol
     // Note: This will also call the strategy and set the fTokenAdress
-    await protocolContract.registerStrategy(strategyContract.address, principalTokenAddress, "fDAI", "fDAI");
+    const result = await protocolContract.registerStrategy(
+      strategyContract.address,
+      principalTokenAddress,
+      "fDAI",
+      "fDAI",
+    );
 
     // Normally we'd set the fee here but since we test that further on, it's not needed.
     //
 
-    fTokenAddress = (await protocolContract.strategies(strategyContract.address)).fTokenAddress;
+    // We must look at the event to determine the fTokenAddress
+    let receipt: ContractReceipt = await result.wait();
+    // @ts-ignore
+    const args = (receipt.events?.filter(x => {
+      return x.event == "StrategyRegistered";
+    }))[0]["args"];
+    // @ts-ignore
+    fTokenAddress = args["_fTokenAddress"];
+
+    console.log("fTokenAddress is", fTokenAddress);
   });
 
   it("account 0 should deploy Flash Token contract", async function () {
@@ -83,10 +97,6 @@ describe("Flashstake Tests", function () {
     );
 
     await strategyContract.setUserIncentiveAddress(userIncentiveContract.address);
-  });
-
-  it("should ensure protocol reports correct fToken address for newly registered strategy", async function () {
-    await expect((await protocolContract.strategies(strategyContract.address)).fTokenAddress).to.be.eq(fTokenAddress);
   });
 
   it("should fail when trying to register the same strategy again with error", async function () {

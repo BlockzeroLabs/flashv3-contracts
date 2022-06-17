@@ -2,18 +2,16 @@
 pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./interfaces/IFlashStrategy.sol";
 import "./interfaces/IFlashFToken.sol";
 import "./interfaces/IFlashNFT.sol";
-import "./interfaces/IERC20C.sol";
 import "./interfaces/IFlashFTokenFactory.sol";
 
 contract FlashProtocol is Ownable, ReentrancyGuard {
-    using SafeMath for uint256;
-    using SafeERC20 for IERC20C;
+    using SafeERC20 for IERC20;
 
     address public immutable flashNFTAddress;
     address immutable flashFTokenFactoryAddress;
@@ -23,17 +21,17 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         address fTokenAddress;
         address principalTokenAddress;
     }
-    mapping(address => StrategyInformation) public strategies;
+    mapping(address => StrategyInformation) strategies;
 
     // This will store the NFT ID to StakeID mapping
-    mapping(uint256 => uint256) public nftIdMappingsToStakeIds;
+    mapping(uint256 => uint256) nftIdMappingsToStakeIds;
 
     // This will store how many stakes we have
-    uint256 public stakeCount = 0;
+    uint256 stakeCount = 0;
 
     // The global fToken mint fee
-    uint96 public globalMintFee = 0;
-    address public globalMintFeeRecipient = 0x5089722613C2cCEe071C39C59e9889641f435F15;
+    uint96 globalMintFee = 0;
+    address globalMintFeeRecipient = 0x5089722613C2cCEe071C39C59e9889641f435F15;
 
     // This defines the structure of the Stake information we store
     struct StakeStruct {
@@ -49,7 +47,7 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         uint256 totalFTokenBurned;
         uint256 totalStakedWithdrawn;
     }
-    mapping(uint256 => StakeStruct) public stakes;
+    mapping(uint256 => StakeStruct) stakes;
 
     // Define events
     event StrategyRegistered(
@@ -61,7 +59,6 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
     event Unstaked(uint256 _stakeId, uint256 _tokensReturned, uint256 _fTokensBurned, bool _stakeFinished);
     event NFTIssued(uint256 _stakeId, uint256 nftId);
     event NFTRedeemed(uint256 _stakeId, uint256 nftId);
-    event SetMintFeeInfo(address _feeRecipient, uint96 _feePercentageBasis);
 
     constructor(address _flashNFTAddress, address _flashFTokenFactoryAddress) public {
         flashNFTAddress = _flashNFTAddress;
@@ -101,7 +98,7 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         );
 
         // Transfer the tokens from caller to the strategy contract
-        IERC20C(strategies[_strategyAddress].principalTokenAddress).transferFrom(
+        IERC20(strategies[_strategyAddress].principalTokenAddress).safeTransferFrom(
             msg.sender,
             address(_strategyAddress),
             _tokenAmount
@@ -116,11 +113,11 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         // Calculate fee and if this is more than 0, transfer fee
         uint256 fee = (tokensToMint * globalMintFee) / 10000;
         if (fee > 0) {
-            IERC20C(strategies[_strategyAddress].fTokenAddress).mint(globalMintFeeRecipient, fee);
+            IFlashToken(strategies[_strategyAddress].fTokenAddress).mint(globalMintFeeRecipient, fee);
         }
 
         // Mint fERC20 tokens to the user
-        IERC20C(strategies[_strategyAddress].fTokenAddress).mint(_fTokensTo, (tokensToMint - fee));
+        IFlashToken(strategies[_strategyAddress].fTokenAddress).mint(_fTokensTo, (tokensToMint - fee));
 
         // Save the stake details
         stakeCount = stakeCount + 1;
@@ -218,7 +215,7 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
             }
 
             // Burn these fTokens
-            IERC20C(strategies[p.strategyAddress].fTokenAddress).burnFrom(msg.sender, _fTokenToBurn);
+            IFlashToken(strategies[p.strategyAddress].fTokenAddress).burnFrom(msg.sender, _fTokenToBurn);
 
             // Update stake information
             stakes[stakeId].totalFTokenBurned = p.totalFTokenBurned + _fTokenToBurn;
@@ -231,7 +228,7 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
 
         // Remove tokens from Strategy and transfer to user
         IFlashStrategy(p.strategyAddress).withdrawPrincipal(principalToReturn);
-        IERC20C(strategies[p.strategyAddress].principalTokenAddress).transfer(returnAddress, principalToReturn);
+        IERC20(strategies[p.strategyAddress].principalTokenAddress).safeTransfer(returnAddress, principalToReturn);
 
         return (principalToReturn, _fTokenToBurn);
     }
@@ -258,8 +255,6 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         require(_feePercentageBasis <= 2000);
         globalMintFeeRecipient = _feeRecipient;
         globalMintFee = _feePercentageBasis;
-
-        emit SetMintFeeInfo(_feeRecipient, _feePercentageBasis);
     }
 
     function getStakeInfo(uint256 _id, bool _isNFT) external view returns (StakeStruct memory _stake) {
@@ -285,8 +280,8 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         // Stake
         uint256 fTokensMinted = stake(_strategyAddress, _tokenAmount, _stakeDuration, _yieldTo, _mintNFT).fTokensToUser;
 
-        IERC20C fToken = IERC20C(strategies[_strategyAddress].fTokenAddress);
-        fToken.transferFrom(msg.sender, address(this), fTokensMinted);
+        IERC20 fToken = IERC20(strategies[_strategyAddress].fTokenAddress);
+        fToken.safeTransferFrom(msg.sender, address(this), fTokensMinted);
 
         // Approve, burn and send yield to specified address
         fToken.approve(_strategyAddress, fTokensMinted);
