@@ -2,15 +2,16 @@
 pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "../interfaces/IERC20C.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../interfaces/AAVE/ILendingPool.sol";
 import "../interfaces/AAVE/IAaveIncentivesController.sol";
 import "../interfaces/IFlashStrategy.sol";
 import "../interfaces/IUserIncentive.sol";
+import "../interfaces/IFlashFToken.sol";
 
 contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
-    using SafeMath for uint256;
+    using SafeERC20 for IERC20;
 
     address immutable flashProtocolAddress;
     address immutable lendingPoolAddress; // The AAVE V2 lending pool address
@@ -42,7 +43,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
 
     // Implemented as a separate function just in case the strategy ever runs out of allowance
     function increaseAllowance() public {
-        IERC20C(principalTokenAddress).approve(lendingPoolAddress, type(uint256).max);
+        IERC20(principalTokenAddress).safeApprove(lendingPoolAddress, type(uint256).max);
     }
 
     function depositPrincipal(uint256 _tokenAmount) external override onlyAuthorised returns (uint256) {
@@ -59,7 +60,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         // Withdraw from AAVE
         ILendingPool(lendingPoolAddress).withdraw(principalTokenAddress, _tokenAmount, address(this));
 
-        uint256 aTokenBalance = IERC20C(interestBearingTokenAddress).balanceOf(address(this));
+        uint256 aTokenBalance = IERC20(interestBearingTokenAddress).balanceOf(address(this));
         require(aTokenBalance >= getPrincipalBalance(), "PRINCIPAL BALANCE INVALID");
     }
 
@@ -67,7 +68,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         // Withdraw from AAVE
         ILendingPool(lendingPoolAddress).withdraw(principalTokenAddress, _tokenAmount, address(this));
 
-        IERC20C(principalTokenAddress).transfer(msg.sender, _tokenAmount);
+        IERC20(principalTokenAddress).safeTransfer(msg.sender, _tokenAmount);
 
         principalBalance = principalBalance - _tokenAmount;
     }
@@ -80,7 +81,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
             require(_tokenAddresses[i] != interestBearingTokenAddress, "TOKEN ADDRESS PROHIBITED");
 
             // Transfer the token to the caller
-            IERC20C(_tokenAddresses[i]).transfer(msg.sender, _tokenAmounts[i]);
+            IERC20(_tokenAddresses[i]).safeTransfer(msg.sender, _tokenAmounts[i]);
         }
     }
 
@@ -89,7 +90,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
     }
 
     function getYieldBalance() public view override returns (uint256) {
-        uint256 interestBearingTokenBalance = IERC20C(interestBearingTokenAddress).balanceOf(address(this));
+        uint256 interestBearingTokenBalance = IERC20(interestBearingTokenAddress).balanceOf(address(this));
 
         return (interestBearingTokenBalance - getPrincipalBalance());
     }
@@ -120,7 +121,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
     }
 
     function quoteBurnFToken(uint256 _tokenAmount) public view override returns (uint256) {
-        uint256 totalSupply = IERC20C(fTokenAddress).totalSupply();
+        uint256 totalSupply = IERC20(fTokenAddress).totalSupply();
         require(totalSupply > 0, "INSUFFICIENT fERC20 TOKEN SUPPLY");
 
         uint256 totalYield = getYieldBalance();
@@ -140,10 +141,10 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable {
         require(tokensOwed >= _minimumReturned && tokensOwed > 0, "INSUFFICIENT OUTPUT");
 
         // Transfer fERC20 (from caller) tokens to contract so we can burn them
-        IERC20C(fTokenAddress).burnFrom(msg.sender, _tokenAmount);
+        IFlashFToken(fTokenAddress).burnFrom(msg.sender, _tokenAmount);
 
         withdrawYield(tokensOwed);
-        IERC20C(principalTokenAddress).transfer(_yieldTo, tokensOwed);
+        IERC20(principalTokenAddress).safeTransfer(_yieldTo, tokensOwed);
 
         // Distribute rewards if there is a reward balance within contract
         if (userIncentiveAddress != address(0)) {

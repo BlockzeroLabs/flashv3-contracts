@@ -113,11 +113,11 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         // Calculate fee and if this is more than 0, transfer fee
         uint256 fee = (tokensToMint * globalMintFee) / 10000;
         if (fee > 0) {
-            IFlashToken(strategies[_strategyAddress].fTokenAddress).mint(globalMintFeeRecipient, fee);
+            IFlashFToken(strategies[_strategyAddress].fTokenAddress).mint(globalMintFeeRecipient, fee);
         }
 
         // Mint fERC20 tokens to the user
-        IFlashToken(strategies[_strategyAddress].fTokenAddress).mint(_fTokensTo, (tokensToMint - fee));
+        IFlashFToken(strategies[_strategyAddress].fTokenAddress).mint(_fTokensTo, (tokensToMint - fee));
 
         // Save the stake details
         stakeCount = stakeCount + 1;
@@ -215,7 +215,7 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
             }
 
             // Burn these fTokens
-            IFlashToken(strategies[p.strategyAddress].fTokenAddress).burnFrom(msg.sender, _fTokenToBurn);
+            IFlashFToken(strategies[p.strategyAddress].fTokenAddress).burnFrom(msg.sender, _fTokenToBurn);
 
             // Update stake information
             stakes[stakeId].totalFTokenBurned = p.totalFTokenBurned + _fTokenToBurn;
