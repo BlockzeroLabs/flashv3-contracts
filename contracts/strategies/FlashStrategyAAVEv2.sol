@@ -44,6 +44,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable, ReentrancyGuard {
 
     // Implemented as a separate function just in case the strategy ever runs out of allowance
     function increaseAllowance() public {
+        IERC20(principalTokenAddress).safeApprove(lendingPoolAddress, 0);
         IERC20(principalTokenAddress).safeApprove(lendingPoolAddress, type(uint256).max);
     }
 
