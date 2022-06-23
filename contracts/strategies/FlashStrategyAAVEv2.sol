@@ -126,6 +126,10 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable, ReentrancyGuard {
         uint256 totalSupply = IERC20(fTokenAddress).totalSupply();
         require(totalSupply > 0, "INSUFFICIENT fERC20 TOKEN SUPPLY");
 
+        if (_tokenAmount > totalSupply) {
+            _tokenAmount = totalSupply;
+        }
+
         uint256 totalYield = getYieldBalance();
 
         // Calculate the percentage of _tokenAmount vs totalSupply provided
