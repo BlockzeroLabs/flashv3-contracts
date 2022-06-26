@@ -281,14 +281,14 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         address _yieldTo,
         bool _mintNFT
     ) external {
-        // Stake
-        uint256 fTokensMinted = stake(_strategyAddress, _tokenAmount, _stakeDuration, _yieldTo, _mintNFT).fTokensToUser;
+        // Stake (re-direct fTokens to this contract)
+        uint256 fTokensToUser = stake(_strategyAddress, _tokenAmount, _stakeDuration, address(this), _mintNFT)
+            .fTokensToUser;
 
         IERC20 fToken = IERC20(strategies[_strategyAddress].fTokenAddress);
-        fToken.safeTransferFrom(msg.sender, address(this), fTokensMinted);
 
         // Approve, burn and send yield to specified address
-        fToken.approve(_strategyAddress, fTokensMinted);
-        IFlashStrategy(_strategyAddress).burnFToken(fTokensMinted, _minimumReceived, _yieldTo);
+        fToken.approve(_strategyAddress, fTokensToUser);
+        IFlashStrategy(_strategyAddress).burnFToken(fTokensToUser, _minimumReceived, _yieldTo);
     }
 }

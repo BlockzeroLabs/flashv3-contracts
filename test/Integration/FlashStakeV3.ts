@@ -899,4 +899,24 @@ describe("Flashstake Tests", function () {
     const newRewardBalance = await userIncentiveContract.rewardTokenBalance();
     expect(newRewardBalance).to.be.eq(oldRewardBalance.add(_amount));
   });
+
+  it("account 0 should flashstake 1000 DAI and redirect yield to account 9", async function () {
+    const _amount = BigNumber.from(1000).mul(multiplier);
+    const _duration = 63072000;
+
+    // Expect the balance to be initially 0
+    const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
+    expect(await daiContract.balanceOf(signers[9].address)).to.be.eq(0);
+
+    // Perform approvals
+    await daiContract.connect(signers[0]).approve(protocolContract.address, _amount);
+
+    const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
+    await fTokenContract.connect(signers[0]).approve(protocolContract.address, BigNumber.from(1000000).mul(multiplier));
+
+    await protocolContract
+      .connect(signers[0])
+      .flashStake(strategyContract.address, _amount, _duration, 0, signers[9].address, false);
+    expect(await daiContract.balanceOf(signers[9].address)).to.be.gt(0);
+  });
 });
