@@ -318,6 +318,20 @@ describe("Flashstake Tests", function () {
     await protocolContract.connect(signers[3]).unstake(1, true, 0);
     const newBalance = await daiContract.balanceOf(signers[3].address);
     expect(newBalance).to.be.eq(expectedBalance);
+
+    // Ensure the NFT is not burned
+    const nftAddress = await protocolContract.flashNFTAddress();
+    const nftContract = await hre.ethers.getContractAt("FlashNFT", nftAddress);
+    expect(await nftContract.ownerOf(1)).to.be.eq(signers[3].address);
+  });
+
+  it("should fail when attempting to unstake using same NFT", async function () {
+    await expect(protocolContract.connect(signers[3]).unstake(1, true, 0)).to.be.revertedWith("SNM");
+
+    // The above would report as SNM (stake-nft-missing) since the stake has ended
+    // and the stake information has been deleted. Therefore the user is trying
+    // to unstake stakeId 0 to which the user does not have the corresponding NFT
+    // side note: stakeId 0 is impossible since stakes start at 1
   });
 
   it("should fail when attempting to create NFT for invalid stake", async function () {

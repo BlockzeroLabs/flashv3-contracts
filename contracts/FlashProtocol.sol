@@ -159,10 +159,6 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
             returnAddress = msg.sender;
             require(p.nftId == _id, "SNM");
             require(IFlashNFT(flashNFTAddress).ownerOf(_id) == msg.sender, "NNO");
-
-            // Burn the NFT
-            IFlashNFT(flashNFTAddress).burn(_id);
-            emit NFTRedeemed(stakeId, _id);
         } else {
             stakeId = _id;
             p = stakes[stakeId];
@@ -173,22 +169,22 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         }
         require(p.active == true, "SNE");
 
+        bool stakeFinished;
         uint256 principalToReturn;
         uint256 percentageIntoStake = (((block.timestamp - p.stakeStartTs) * (10**18)) / p.stakeDuration);
 
         if (percentageIntoStake >= (10**18)) {
             // Stake has ended, simply return principal
             principalToReturn = p.stakedAmount - p.totalStakedWithdrawn;
-            emit Unstaked(stakeId, principalToReturn, 0, true);
+            _fTokenToBurn = 0;
 
-            delete stakes[stakeId];
+            stakeFinished = true;
         } else {
             require(block.timestamp >= (p.stakeStartTs + 3600), "MIN DUR 1HR");
 
             // Stake has not ended yet, user is trying to withdraw early
             uint256 fTokenBurnForFullUnstake = ((((10**18) - percentageIntoStake) * (p.fTokensToUser + p.fTokensFee)) /
                 (10**18));
-            bool stakeFinished;
 
             if (p.totalFTokenBurned > fTokenBurnForFullUnstake) {
                 // The total number of fTokens burned is greater than the amount required, no burn required
@@ -220,11 +216,19 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
             // Update stake information
             stakes[stakeId].totalFTokenBurned = p.totalFTokenBurned + _fTokenToBurn;
             stakes[stakeId].totalStakedWithdrawn = p.totalStakedWithdrawn + principalToReturn;
-
-            emit Unstaked(stakeId, principalToReturn, _fTokenToBurn, stakeFinished);
         }
         require(principalToReturn > 0);
         require(p.stakedAmount >= stakes[stakeId].totalStakedWithdrawn);
+
+        // if the stake is finished, delete all data related to it (nice to have)
+        if (stakeFinished) {
+            delete stakes[stakeId];
+        }
+        // if the stake finished and it was NFT based, remove the mapping (nice to have)
+        if (stakeFinished && _isNFT) {
+            delete nftIdMappingsToStakeIds[_id];
+        }
+        emit Unstaked(stakeId, principalToReturn, _fTokenToBurn, stakeFinished);
 
         // Remove tokens from Strategy and transfer to user
         IFlashStrategy(p.strategyAddress).withdrawPrincipal(principalToReturn);
