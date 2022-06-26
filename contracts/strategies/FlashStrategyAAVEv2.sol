@@ -130,11 +130,9 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable, ReentrancyGuard {
             _tokenAmount = totalSupply;
         }
 
-        uint256 totalYield = getYieldBalance();
-
         // Calculate the percentage of _tokenAmount vs totalSupply provided
         // and multiply by total yield
-        return (totalYield * _tokenAmount) / totalSupply;
+        return (getYieldBalance() * _tokenAmount) / totalSupply;
     }
 
     function burnFToken(
