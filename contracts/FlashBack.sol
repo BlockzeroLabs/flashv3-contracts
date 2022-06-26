@@ -105,6 +105,7 @@ contract FlashBack is Ownable {
         if (reward > rewardsAvailable) {
             reward = rewardsAvailable;
         }
+        require(reward > 0, "INSUFFICIENT OUTPUT");
 
         return reward;
     }
