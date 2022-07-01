@@ -44,6 +44,13 @@ describe("Flashstake Tests", function () {
     protocolContract = <FlashProtocol>(
       await deployContract(signers[0], protocolArtifact, [nftContract.address, fTokenFactoryContract.address])
     );
+    var bytecode = protocolArtifact.bytecode;
+    var deployed = protocolArtifact.deployedBytecode;
+    var sizeOfB = bytecode.length / 2;
+    var sizeOfD = deployed.length / 2;
+    console.log("size of bytecode in bytes = ", sizeOfB);
+    console.log("size of deployed in bytes = ", sizeOfD);
+    console.log("initialisation and constructor code in bytes = ", sizeOfB - sizeOfD);
     await nftContract.transferOwnership(protocolContract.address);
     await fTokenFactoryContract.transferOwnership(protocolContract.address);
 
@@ -900,23 +907,35 @@ describe("Flashstake Tests", function () {
     expect(newRewardBalance).to.be.eq(oldRewardBalance.add(_amount));
   });
 
-  it("account 0 should flashstake 1000 DAI and redirect yield to account 9", async function () {
+  it("should impersonate account 0xca4ad39f872e89ef23eabd5716363fc22513e147 and transfer 1,000 DAI to account 9", async function () {
+    await hre.network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: ["0xca4ad39f872e89ef23eabd5716363fc22513e147"],
+    });
+    const signer = await hre.ethers.getSigner("0xca4ad39f872e89ef23eabd5716363fc22513e147");
+    const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
+
+    // Connect using the impersonated account and transfer 10,000 DAI
+    await daiContract.connect(signer).transfer(signers[9].address, BigNumber.from(10000).mul(multiplier));
+
+    const balance = await daiContract.balanceOf(signers[9].address);
+    expect(balance).gte(BigNumber.from(10000).mul(multiplier));
+  });
+
+  it("account 9 should flashstake 1000 DAI and redirect yield to account 10", async function () {
     const _amount = BigNumber.from(1000).mul(multiplier);
     const _duration = 63072000;
 
     // Expect the balance to be initially 0
     const daiContract = await hre.ethers.getContractAt("IERC20C", principalTokenAddress);
-    expect(await daiContract.balanceOf(signers[9].address)).to.be.eq(0);
+    expect(await daiContract.balanceOf(signers[10].address)).to.be.eq(0);
 
     // Perform approvals
-    await daiContract.connect(signers[0]).approve(protocolContract.address, _amount);
-
-    const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
-    await fTokenContract.connect(signers[0]).approve(protocolContract.address, BigNumber.from(1000000).mul(multiplier));
+    await daiContract.connect(signers[9]).approve(protocolContract.address, _amount);
 
     await protocolContract
-      .connect(signers[0])
-      .flashStake(strategyContract.address, _amount, _duration, 0, signers[9].address, false);
-    expect(await daiContract.balanceOf(signers[9].address)).to.be.gt(0);
+      .connect(signers[9])
+      .flashStake(strategyContract.address, _amount, _duration, 0, signers[10].address, false);
+    expect(await daiContract.balanceOf(signers[10].address)).to.be.gt(0);
   });
 });
