@@ -26,8 +26,6 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable, ReentrancyGuard {
 
     address public userIncentiveAddress;
 
-    event BurnedFToken(address indexed _address, uint256 _tokenAmount, uint256 _yieldReturned);
-
     constructor(
         address _lendingPoolAddress,
         address _principalTokenAddress,
