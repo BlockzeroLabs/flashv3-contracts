@@ -58,7 +58,6 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
     event Staked(uint256 _stakeId);
     event Unstaked(uint256 _stakeId, uint256 _tokensReturned, uint256 _fTokensBurned, bool _stakeFinished);
     event NFTIssued(uint256 _stakeId, uint256 nftId);
-    event NFTRedeemed(uint256 _stakeId, uint256 nftId);
 
     constructor(address _flashNFTAddress, address _flashFTokenFactoryAddress) public {
         flashNFTAddress = _flashNFTAddress;
