@@ -182,6 +182,27 @@ task("deploy:FlashBack")
     console.log("-> FlashBack Contract Deployed", flashBack.address);
   });
 
+task("deploy:UserIncentive")
+  .addParam("strategyaddress", "The strategy address we want to incentivise")
+  .setAction(async function (taskArguments: TaskArguments, { ethers }) {
+    const [wallet1] = await ethers.getSigners();
+
+    console.log("Deploying UserIncentive Contract");
+    const uiFactory: UserIncentive__factory = await ethers.getContractFactory("UserIncentive");
+    const userIncentiveContract: UserIncentive = <UserIncentive>(
+      await uiFactory.connect(wallet1).deploy(taskArguments.strategyaddress, 7257600)
+    );
+    await userIncentiveContract.deployed();
+    console.log("-> UserIncentive Contract Deployed", userIncentiveContract.address);
+
+    console.log("Updating Strategy to use UserIncentive contract");
+    const strategyContract: FlashStrategyAAVEv2 = <FlashStrategyAAVEv2>(
+      await ethers.getContractAt("FlashStrategyAAVEv2", taskArguments.strategyaddress)
+    );
+    await strategyContract.connect(wallet1).setUserIncentiveAddress(userIncentiveContract.address);
+    console.log("-> Done");
+  });
+
 /*
   =============================
   Steps to deploy:
@@ -203,10 +224,10 @@ npx hardhat deploy:FlashFTokenFactory --network kovan
 npx hardhat deploy:FlashProtocol --network kovan --nftaddress xx --flashftokenfactory xx
 
 // 6. Transfer the ownership of Flash NFT to Flash protocol
-npx hardhat deploy:TransferNFTOwnership --network kovan --nftaddress <nftaddress> --flashprotocoladdress <flash protocol address>
+npx hardhat deploy:TransferNFTOwnership --network kovan --nftaddress xx --flashprotocoladdress xx
 
 // 7 Transfer the ownership of Flash FToken Factory to flash protocol
-npx hardhat deploy:TransferFactoryOwnership --network kovan --factoryaddress xx --flashprotocoladdress <flash protocol address>
+npx hardhat deploy:TransferFactoryOwnership --network kovan --factoryaddress xx --flashprotocoladdress xx
 
 // 8. Deploy flash strategy (AAVE v2)
 npx hardhat deploy:FlashAAVEStrategy --network kovan --pooladdress xxx --principaltokenaddress xxx --interestbearingtokenaddresses xx --flashprotocoladdress xx
@@ -217,7 +238,12 @@ npx hardhat deploy:RegisterStrategy --network kovan --flashprotocoladdress xxx -
 // 10. Deploy the FlashBack contract
 npx hardhat deploy:FlashBack --network kovan --flashtokenaddress xx
 
-// 11. Verify all the contracts
+// 11. Deploy the UserIncentive contract
+npx hardhat deploy:UserIncentive --network kovan --strategyaddress xx
+
+// Manually deposit rewards using functions (UserIncentive)
+
+// 12. Verify all the contracts
 npx hardhat verify --network kovan <contractAddress>
 
 */
