@@ -2,6 +2,8 @@
 pragma solidity ^0.8.4;
 
 interface IFlashStrategy {
+    event BurnedFToken(address indexed _address, uint256 _tokenAmount, uint256 _yieldReturned);
+
     // This is how principal will be deposited into the contract
     // The Flash protocol allows the strategy to specify how much
     // should be registered. This allows the strategy to manipulate (eg take fee)

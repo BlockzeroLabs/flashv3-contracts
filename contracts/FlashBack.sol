@@ -105,6 +105,7 @@ contract FlashBack is Ownable {
         if (reward > rewardsAvailable) {
             reward = rewardsAvailable;
         }
+        require(reward > 0, "INSUFFICIENT OUTPUT");
 
         return reward;
     }
@@ -114,7 +115,6 @@ contract FlashBack is Ownable {
     }
 
     function setRewardRate(uint256 _rewardRate) external onlyOwner {
-        require(_rewardRate <= 63419583968, "INVALID REWARD RATE");
         rewardRate = _rewardRate;
     }
 

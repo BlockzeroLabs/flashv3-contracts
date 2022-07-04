@@ -26,8 +26,6 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable, ReentrancyGuard {
 
     address public userIncentiveAddress;
 
-    event BurnedFToken(address indexed _address, uint256 _tokenAmount, uint256 _yieldReturned);
-
     constructor(
         address _lendingPoolAddress,
         address _principalTokenAddress,
@@ -130,11 +128,9 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable, ReentrancyGuard {
             _tokenAmount = totalSupply;
         }
 
-        uint256 totalYield = getYieldBalance();
-
         // Calculate the percentage of _tokenAmount vs totalSupply provided
         // and multiply by total yield
-        return (totalYield * _tokenAmount) / totalSupply;
+        return (getYieldBalance() * _tokenAmount) / totalSupply;
     }
 
     function burnFToken(

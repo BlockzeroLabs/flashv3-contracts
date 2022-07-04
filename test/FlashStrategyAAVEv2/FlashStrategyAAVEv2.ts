@@ -72,6 +72,12 @@ describe("FlashStrategyAAVEv2 Tests", function () {
     expect(await this.flashStrategyAAVEv2Artifact.getPrincipalAddress()).eq(principalTokenAddress);
   });
 
+  it("should return error when getting quote: INSUFFICIENT fERC20 TOKEN SUPPLY", async function () {
+    await expect(this.flashStrategyAAVEv2Artifact.quoteBurnFToken(1)).to.be.revertedWith(
+      "INSUFFICIENT fERC20 TOKEN SUPPLY",
+    );
+  });
+
   it("should impersonate account 0xca4ad39f872e89ef23eabd5716363fc22513e147 and transfer 1,000,000 DAI to account 0", async function () {
     // Tell hardhat to impersonate
     await hre.network.provider.request({
@@ -390,6 +396,27 @@ describe("FlashStrategyAAVEv2 Tests", function () {
     const yieldBalanceAfter = await this.flashStrategyAAVEv2Artifact.getYieldBalance();
 
     expect(yieldBalanceAfter).gte(yieldBalanceBefore.add(_amount));
+  });
+
+  it("should mint 10000.00000512 fERC20 (simulating 10k DAI for 365 days)", async function () {
+    const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
+    fTokenContract.mint(this.signers.admin.address, ethers.utils.parseUnits("10000.00000512", 18));
+  });
+
+  it("ensure quoting >totalSupply does not result in more yield than total yield available", async function () {
+    // Get the current total supply (fTokens)
+    const fTokenContract = await hre.ethers.getContractAt("IERC20C", fTokenAddress);
+    const totalSupply = await fTokenContract.totalSupply();
+
+    const _amount = totalSupply.mul(totalSupply);
+
+    // Get a quote
+    const quotedResult = await this.flashStrategyAAVEv2Artifact.quoteBurnFToken(_amount);
+
+    // Get the total available yield
+    const totalYield = await this.flashStrategyAAVEv2Artifact.getYieldBalance();
+
+    expect(totalYield).to.be.gte(quotedResult);
   });
 });
 

@@ -28,8 +28,8 @@ describe("FlashBack Tests", function () {
     await flashBackContract.setForfeitRewardAddress(forfeitAddress);
   });
 
-  it("should transfer 25,000,000 Flash from account 0 to flashback contract", async function () {
-    let _amount = ethers.utils.parseUnits("25000000", 18);
+  it("should transfer 5,000,000 Flash from account 0 to flashback contract", async function () {
+    let _amount = ethers.utils.parseUnits("5000000", 18);
     let _recipient = flashBackContract.address;
 
     await flashTokenContract.connect(signers[0]).transfer(_recipient, _amount);
@@ -74,13 +74,13 @@ describe("FlashBack Tests", function () {
     expect(result).to.be.eq(ethers.utils.parseUnits("500000.000003712", 18));
   });
 
-  it("account 1 should get quote, 100,000,000 FLASH for 365 days = 25,000,000 in rewards (total available)", async function () {
+  it("account 1 should get quote, 100,000,000 FLASH for 365 days = 5,000,000 in rewards (total available)", async function () {
     let _amount = ethers.utils.parseUnits("100000000", 18);
     let _duration = 31536000;
 
     let result = await flashBackContract.calculateReward(_amount, _duration);
 
-    expect(result).to.be.eq(ethers.utils.parseUnits("25000000", 18));
+    expect(result).to.be.eq(ethers.utils.parseUnits("5000000", 18));
   });
 
   it("account 1 should fail getting quote, 1,000,000 FLASH for 366 days with error MAXIMUM STAKE DURATION IS 365 DAYS", async function () {
@@ -257,12 +257,6 @@ describe("FlashBack Tests", function () {
     await expect(flashBackContract.connect(signers[2]).unstake(3)).to.be.revertedWith("INVALID STAKE");
   });
 
-  it("account 0 should fail to increase reward rate to > 63419583968 / 200% with error INVALID REWARD RATE", async function () {
-    await expect(flashBackContract.connect(signers[0]).setRewardRate("63419583969")).to.be.revertedWith(
-      "INVALID REWARD RATE",
-    );
-  });
-
   it("account 0 should increase reward rate to: 63419583968 / 200%", async function () {
     await flashBackContract.connect(signers[0]).setRewardRate("63419583968");
   });
@@ -274,5 +268,21 @@ describe("FlashBack Tests", function () {
     let result = await flashBackContract.calculateReward(_amount, _duration);
 
     expect(result).to.be.eq(ethers.utils.parseUnits("1000000.000007424", 18));
+  });
+
+  it("drain remaining rewards by staking 5 million Flash", async function () {
+    let _amount = ethers.utils.parseUnits("5000000", 18);
+    let _duration = 86400 * 365;
+    let _minimumReward = 0;
+
+    // Approval and stake
+    await flashTokenContract.connect(signers[0]).approve(flashBackContract.address, _amount);
+    let result = await flashBackContract.connect(signers[0]).stake(_amount, _duration, _minimumReward);
+
+    expect(await flashBackContract.getAvailableRewards()).to.be.eq(0);
+  });
+
+  it("ensure when there are no reward, staking results in error: INSUFFICIENT OUTPUT", async function () {
+    await expect(flashBackContract.stake(1, 864000, 1)).to.be.revertedWith("INSUFFICIENT OUTPUT");
   });
 });
