@@ -62,7 +62,12 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable, ReentrancyGuard {
 
     function withdrawYield(uint256 _tokenAmount) private {
         // Withdraw from AAVE
-        ILendingPool(lendingPoolAddress).withdraw(principalTokenAddress, _tokenAmount, address(this));
+        uint256 returnedTokens = ILendingPool(lendingPoolAddress).withdraw(
+            principalTokenAddress,
+            _tokenAmount,
+            address(this)
+        );
+        require(returnedTokens >= _tokenAmount);
 
         uint256 aTokenBalance = IERC20(interestBearingTokenAddress).balanceOf(address(this));
         require(aTokenBalance >= getPrincipalBalance(), "PRINCIPAL BALANCE INVALID");
@@ -70,7 +75,12 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable, ReentrancyGuard {
 
     function withdrawPrincipal(uint256 _tokenAmount) external override onlyAuthorised {
         // Withdraw from AAVE
-        ILendingPool(lendingPoolAddress).withdraw(principalTokenAddress, _tokenAmount, address(this));
+        uint256 returnedTokens = ILendingPool(lendingPoolAddress).withdraw(
+            principalTokenAddress,
+            _tokenAmount,
+            address(this)
+        );
+        require(returnedTokens >= _tokenAmount);
 
         IERC20(principalTokenAddress).safeTransfer(msg.sender, _tokenAmount);
 
