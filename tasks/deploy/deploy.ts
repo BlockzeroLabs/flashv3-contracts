@@ -172,13 +172,16 @@ task("deploy:RegisterStrategy")
 
 task("deploy:FlashBack")
   .addParam("flashtokenaddress", "The Flash token address")
+  .addParam("rewardtokenaddress", "The reward token address")
   .setAction(async function (taskArguments: TaskArguments, { ethers }) {
     const [wallet1] = await ethers.getSigners();
 
     console.log("Deploying FlashBack Contract");
     const flashBackFactory: FlashBack__factory = await ethers.getContractFactory("FlashBack");
     const flashBack: FlashBack = <FlashBack>(
-      await flashBackFactory.connect(wallet1).deploy(taskArguments.flashtokenaddress)
+      await flashBackFactory
+        .connect(wallet1)
+        .deploy(taskArguments.flashtokenaddress, taskArguments.rewardtokenaddress, 864000, 31536000)
     );
     await flashBack.deployed();
     console.log("-> FlashBack Contract Deployed", flashBack.address);
@@ -238,7 +241,7 @@ npx hardhat deploy:FlashAAVEStrategy --network kovan --pooladdress xxx --princip
 npx hardhat deploy:RegisterStrategy --network kovan --flashprotocoladdress xxx --strategyaddress xxx --principaltokenaddress xxx --ftokenname fDAI --ftokensymbol fDAI
 
 // 10. Deploy the FlashBack contract
-npx hardhat deploy:FlashBack --network kovan --flashtokenaddress xx
+npx hardhat deploy:FlashBack --network kovan --flashtokenaddress xx --rewardtokenaddress xx
 
 // 11. Deploy the UserIncentive contract
 npx hardhat deploy:UserIncentive --network kovan --strategyaddress xx
