@@ -18,6 +18,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable, ReentrancyGuard {
     address immutable lendingPoolAddress; // The AAVE V2 lending pool address
     address immutable principalTokenAddress; // The Principal token address (eg DAI)
     address immutable interestBearingTokenAddress; // The AAVE V2 interest bearing token address
+    uint8 immutable principalDecimals;
 
     address fTokenAddress; // The Flash fERC20 token address
     uint16 referralCode = 0; // The AAVE V2 referral code
@@ -36,6 +37,9 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable, ReentrancyGuard {
         principalTokenAddress = _principalTokenAddress;
         interestBearingTokenAddress = _interestBearingTokenAddress;
         flashProtocolAddress = _flashProtocolAddress;
+
+        // Read the number of decimals from the principal token
+        principalDecimals = IFlashFToken(principalTokenAddress).decimals();
 
         increaseAllowance();
     }
@@ -108,14 +112,17 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable, ReentrancyGuard {
         fTokenAddress = _fTokenAddress;
     }
 
-    function quoteMintFToken(uint256 _tokenAmount, uint256 _duration) external pure override returns (uint256) {
+    function quoteMintFToken(uint256 _tokenAmount, uint256 _duration) external view override returns (uint256) {
         // Enforce minimum _duration
         require(_duration >= 60, "DURATION TOO LOW");
 
         // 1 ERC20 for 365 DAYS = 1 fERC20
         // 1 second = 0.000000031709792000
         // eg (100000000000000000 * (1 second * 31709792000)) / 10**18
-        uint256 amountToMint = (_tokenAmount * (_duration * 31709792000)) / 10**18;
+        // eg (1000000 * (1 second * 31709792000)) / 10**6
+        uint256 amountToMint = (_tokenAmount * (_duration * 31709792000)) / (10**principalDecimals);
+
+        require(amountToMint > 0, "INSUFFICIENT OUTPUT");
 
         return amountToMint;
     }
@@ -164,7 +171,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable, ReentrancyGuard {
     }
 
     function getMaxStakeDuration() public pure override returns (uint256) {
-        return 63072000; // Static 720 days (2 years)
+        return 63072000; // Static 730 days (2 years)
     }
 
     function claimAAVEv2Rewards(address[] calldata _assets, uint256 _amount) external onlyOwner {

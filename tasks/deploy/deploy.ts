@@ -14,6 +14,8 @@ import {
   FlashStrategyAAVEv2__factory,
   FlashToken,
   FlashToken__factory,
+  UserIncentive,
+  UserIncentive__factory,
 } from "../../typechain";
 
 task("deploy:FlashToken").setAction(async function (taskArguments: TaskArguments, { ethers }) {
