@@ -9,8 +9,8 @@ contract FlashBack is Ownable {
     using SafeMath for uint256;
 
     address public immutable stakingTokenAddress;
-    uint256 constant minimumStakeDuration = 864000; // 10 days in seconds
-    uint256 constant maximumStakeDuration = 31536000; // 365 days in seconds
+    uint256 public constant minimumStakeDuration = 864000; // 10 days in seconds
+    uint256 public constant maximumStakeDuration = 31536000; // 365 days in seconds
 
     uint256 public totalReservedRewards;
     uint256 public totalLockedAmount;
@@ -31,6 +31,8 @@ contract FlashBack is Ownable {
 
     event Staked(uint256 stakeId, uint256 _amount, uint256 _duration);
     event Unstaked(uint256 stakeId, uint256 _reward, uint256 _rewardForfeited);
+    event ForfeitRewardAddressChange(address _forfeitRewardAddress);
+    event RewardRateChange(uint256 _rewardRate);
 
     constructor(address _stakingTokenAddress) public {
         stakingTokenAddress = _stakingTokenAddress;
@@ -112,10 +114,12 @@ contract FlashBack is Ownable {
 
     function setForfeitRewardAddress(address _forfeitRewardAddress) external onlyOwner {
         forfeitRewardAddress = _forfeitRewardAddress;
+        emit ForfeitRewardAddressChange(_forfeitRewardAddress);
     }
 
     function setRewardRate(uint256 _rewardRate) external onlyOwner {
         rewardRate = _rewardRate;
+        emit RewardRateChange(_rewardRate);
     }
 
     function getAvailableRewards() external view returns (uint256) {
