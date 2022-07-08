@@ -70,7 +70,11 @@ contract FlashProtocol is Ownable, ReentrancyGuard {
         string calldata _fTokenName,
         string calldata _fTokenSymbol
     ) external {
-        require(strategies[_strategyAddress].principalTokenAddress == address(0));
+        require(
+            strategies[_strategyAddress].principalTokenAddress == address(0) &&
+                _strategyAddress != address(0) &&
+                _principalTokenAddress != address(0)
+        );
 
         address flashFToken = IFlashFTokenFactory(flashFTokenFactoryAddress).createFToken(_fTokenName, _fTokenSymbol);
 

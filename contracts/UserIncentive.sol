@@ -28,7 +28,7 @@ contract UserIncentive is IUserIncentive, Ownable {
         address _rewardTokenAddress,
         uint256 _tokenAmount,
         uint256 _ratio
-    ) external onlyOwner {
+    ) external override onlyOwner {
         // Withdraw any reward tokens currently in contract and deposit new tokens
         if (rewardTokenBalance > 0) {
             // Only enforce this check if the rewardTokenBalance <= 0
@@ -44,7 +44,7 @@ contract UserIncentive is IUserIncentive, Ownable {
         rewardTokenAddress = _rewardTokenAddress;
     }
 
-    function addRewardTokens(uint256 _tokenAmount) external onlyOwner {
+    function addRewardTokens(uint256 _tokenAmount) external override onlyOwner {
         IERC20C(rewardTokenAddress).transferFrom(msg.sender, address(this), _tokenAmount);
         rewardLockoutTs = block.timestamp + rewardLockoutConstant;
 
@@ -52,7 +52,7 @@ contract UserIncentive is IUserIncentive, Ownable {
         rewardTokenBalance = rewardTokenBalance + _tokenAmount;
     }
 
-    function setRewardRatio(uint256 _ratio) external onlyOwner {
+    function setRewardRatio(uint256 _ratio) external override onlyOwner {
         // Ensure this can only be called whilst lockout is active
         require(rewardLockoutTs > block.timestamp, "LOCKOUT NOT IN FORCE");
 
@@ -62,7 +62,7 @@ contract UserIncentive is IUserIncentive, Ownable {
         rewardRatio = _ratio;
     }
 
-    function quoteReward(uint256 _fERC20Burned) public view returns (uint256) {
+    function quoteReward(uint256 _fERC20Burned) public view override returns (uint256) {
         if (rewardRatio == 0) {
             return 0;
         }
@@ -76,7 +76,7 @@ contract UserIncentive is IUserIncentive, Ownable {
         return rewardAmount;
     }
 
-    function claimReward(uint256 _fERC20Burned, address _yieldTo) external onlyStrategy {
+    function claimReward(uint256 _fERC20Burned, address _yieldTo) external override onlyStrategy {
         uint256 rewardAmount = quoteReward(_fERC20Burned);
         if (rewardAmount == 0) {
             return;

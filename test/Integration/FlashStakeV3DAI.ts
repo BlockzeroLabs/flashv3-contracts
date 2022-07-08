@@ -13,7 +13,7 @@ import { expect } from "chai";
 import { BigNumber, ContractReceipt, ethers } from "ethers";
 const { deployContract } = hre.waffle;
 
-describe("Flashstake Tests", function () {
+describe("Flashstake Tests (DAI)", function () {
   const multiplier = BigNumber.from(10).pow(BigNumber.from(18));
 
   let principalTokenAddress = "0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD";
