@@ -17,7 +17,7 @@ contract FlashBack is Ownable {
     uint256 public totalLockedAmount;
     address public forfeitRewardAddress = 0x8603FfE7B00CCd759f28aBfE448454A24cFba581;
 
-    uint256 public rewardRate = 31709791984;
+    uint256 public maxAPR = 1;
 
     struct StakeStruct {
         address stakerAddress;
@@ -33,7 +33,7 @@ contract FlashBack is Ownable {
     event Staked(uint256 stakeId, uint256 _amount, uint256 _duration);
     event Unstaked(uint256 stakeId, uint256 _reward, uint256 _rewardForfeited);
     event ForfeitRewardAddressChange(address _forfeitRewardAddress);
-    event RewardRateChange(uint256 _rewardRate);
+    event MaxAPRChange(uint256 _newMaxAPR);
 
     constructor(
         address _stakingTokenAddress,
@@ -109,7 +109,7 @@ contract FlashBack is Ownable {
         require(_duration >= minimumStakeDuration, "DURATION < MINIMUM");
         require(_duration <= maximumStakeDuration, "DURATION > MAXIMUM");
 
-        uint256 reward = (_amount * (rewardRate * _duration)) / (10**18);
+        uint256 reward = ((_duration**2) * (maxAPR * _amount)) / ((10000 * 994519296000000));
 
         uint256 rewardsAvailable = getAvailableRewards();
         if (reward > rewardsAvailable) {
@@ -125,9 +125,9 @@ contract FlashBack is Ownable {
         emit ForfeitRewardAddressChange(_forfeitRewardAddress);
     }
 
-    function setRewardRate(uint256 _rewardRate) external onlyOwner {
-        rewardRate = _rewardRate;
-        emit RewardRateChange(_rewardRate);
+    function setMaxAPR(uint256 _newMaxAPR) external onlyOwner {
+        maxAPR = _newMaxAPR;
+        emit MaxAPRChange(_newMaxAPR);
     }
 
     function getAvailableRewards() public view returns (uint256) {

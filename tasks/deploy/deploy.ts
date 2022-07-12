@@ -17,6 +17,7 @@ import {
   UserIncentive,
   UserIncentive__factory,
 } from "../../typechain";
+import { BigNumber } from "ethers";
 
 task("deploy:FlashToken").setAction(async function (taskArguments: TaskArguments, { ethers }) {
   const [wallet1] = await ethers.getSigners();
@@ -171,8 +172,11 @@ task("deploy:RegisterStrategy")
   });
 
 task("deploy:FlashBack")
-  .addParam("flashtokenaddress", "The Flash token address")
+  .addParam("stakingtokenaddress", "The token to be staked")
   .addParam("rewardtokenaddress", "The reward token address")
+  .addParam("maxapr", "The maximum APR")
+  .addParam("minimumstakeduration", "The minimum amount of seconds the user will need to stake for")
+  .addParam("maximumstakeduration", "The maximum number of seconds the user can stake for")
   .setAction(async function (taskArguments: TaskArguments, { ethers }) {
     const [wallet1] = await ethers.getSigners();
 
@@ -181,10 +185,19 @@ task("deploy:FlashBack")
     const flashBack: FlashBack = <FlashBack>(
       await flashBackFactory
         .connect(wallet1)
-        .deploy(taskArguments.flashtokenaddress, taskArguments.rewardtokenaddress, 864000, 31536000)
+        .deploy(
+          taskArguments.stakingtokenaddress,
+          taskArguments.rewardtokenaddress,
+          BigNumber.from(taskArguments.minimumstakeduration),
+          BigNumber.from(taskArguments.maximumstakeduration),
+        )
     );
     await flashBack.deployed();
     console.log("-> FlashBack Contract Deployed", flashBack.address);
+
+    console.log("FlashBack Setting Ratio to:", BigNumber.from(taskArguments.maxapr));
+    await flashBack.connect(wallet1).setMaxAPR(BigNumber.from(taskArguments.maxapr));
+    console.log("-> FlashBack Ratio set.");
   });
 
 task("deploy:UserIncentive")
@@ -241,7 +254,7 @@ npx hardhat deploy:FlashAAVEStrategy --network kovan --pooladdress xxx --princip
 npx hardhat deploy:RegisterStrategy --network kovan --flashprotocoladdress xxx --strategyaddress xxx --principaltokenaddress xxx --ftokenname fDAI --ftokensymbol fDAI
 
 // 10. Deploy the FlashBack contract
-npx hardhat deploy:FlashBack --network kovan --flashtokenaddress xx --rewardtokenaddress xx
+npx hardhat deploy:FlashBack --network kovan --stakingtokenaddress xx --rewardtokenaddress xx --maxapr xx --minimumstakeduration xx --maximumstakeduration xx
 
 // 11. Deploy the UserIncentive contract
 npx hardhat deploy:UserIncentive --network kovan --strategyaddress xx
