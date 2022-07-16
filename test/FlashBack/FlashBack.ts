@@ -33,6 +33,7 @@ describe("FlashBack Tests (same token)", function () {
 
     // Set the forfeit address
     await flashBackContract.setForfeitRewardAddress(forfeitAddress);
+    await flashBackContract.connect(signers[0]).setMaxAPR(10000);
   });
 
   it("should transfer 5,000,000 Flash from account 0 to flashback contract", async function () {
@@ -63,25 +64,25 @@ describe("FlashBack Tests (same token)", function () {
     expect(await flashTokenContract.balanceOf(_recipient)).to.be.eq(_amount);
   });
 
-  it("account 1 should get quote, 1,000,000 FLASH for 365 days = 1,000,000.000007424 in rewards", async function () {
+  it("account 1 should get quote, 1,000,000 FLASH for 365 days = 1,000,000 in rewards", async function () {
     let _amount = ethers.utils.parseUnits("1000000", 18);
     let _duration = 31536000;
 
     let result = await flashBackContract.calculateReward(_amount, _duration);
 
-    expect(result).to.be.eq(ethers.utils.parseUnits("1000000.000007424", 18));
+    expect(result).to.be.eq(ethers.utils.parseUnits("1000000", 18));
   });
 
-  it("account 1 should get quote, 1,000,000 FLASH for 182.5 days = 500,000.000003712 in rewards", async function () {
+  it("account 1 should get quote, 1,000,000 FLASH for 182.5 days = 250,000 in rewards", async function () {
     let _amount = ethers.utils.parseUnits("1000000", 18);
     let _duration = 15768000;
 
     let result = await flashBackContract.calculateReward(_amount, _duration);
 
-    expect(result).to.be.eq(ethers.utils.parseUnits("500000.000003712", 18));
+    expect(result).to.be.eq(ethers.utils.parseUnits("250000", 18));
   });
 
-  it("account 1 should get quote, 100,000,000 FLASH for 365 days = 5,000,000 in rewards (total available)", async function () {
+  it("account 1 should get quote, 100,000,000 FLASH for 365 days = 10,000 in rewards (total available)", async function () {
     let _amount = ethers.utils.parseUnits("100000000", 18);
     let _duration = 31536000;
 
@@ -118,7 +119,7 @@ describe("FlashBack Tests (same token)", function () {
 
     // Approval and stake
     await flashTokenContract.connect(signers[1]).approve(flashBackContract.address, _amount);
-    let result = await flashBackContract.connect(signers[1]).stake(_amount, _duration, _minimumReward);
+    let result = await flashBackContract.connect(signers[1]).stake(_amount, _duration, 0);
 
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore
@@ -139,7 +140,7 @@ describe("FlashBack Tests (same token)", function () {
 
     // Approval and stake
     await flashTokenContract.connect(signers[2]).approve(flashBackContract.address, _amount);
-    let result = await flashBackContract.connect(signers[2]).stake(_amount, _duration, _minimumReward);
+    let result = await flashBackContract.connect(signers[2]).stake(_amount, _duration, 0);
 
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore
@@ -172,7 +173,7 @@ describe("FlashBack Tests (same token)", function () {
 
     // Approval and stake
     await flashTokenContract.connect(signers[2]).approve(flashBackContract.address, _amount);
-    let result = await flashBackContract.connect(signers[2]).stake(_amount, _duration, _minimumReward);
+    let result = await flashBackContract.connect(signers[2]).stake(_amount, _duration, 0);
 
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore
@@ -259,16 +260,16 @@ describe("FlashBack Tests (same token)", function () {
   });
 
   it("account 0 should increase reward rate to: 63419583968 / 200%", async function () {
-    await flashBackContract.connect(signers[0]).setRewardRate("63419583968");
+    await flashBackContract.connect(signers[0]).setMaxAPR("20000");
   });
 
-  it("account 1 should get quote, 1,000,000 FLASH for 182.5 days = 1000000.000007424 in rewards", async function () {
+  it("account 1 should get quote, 1,000,000 FLASH for 182.5 days = 500,000 in rewards", async function () {
     let _amount = ethers.utils.parseUnits("1000000", 18);
     let _duration = 15768000;
 
     let result = await flashBackContract.calculateReward(_amount, _duration);
 
-    expect(result).to.be.eq(ethers.utils.parseUnits("1000000.000007424", 18));
+    expect(result).to.be.eq(ethers.utils.parseUnits("500000", 18));
   });
 
   it("drain remaining rewards by staking 5 million Flash", async function () {
@@ -318,6 +319,7 @@ describe("FlashBack Tests (different reward token)", function () {
 
     // Set the forfeit address
     await flashBackContract.setForfeitRewardAddress(forfeitAddress);
+    await flashBackContract.connect(signers[0]).setMaxAPR(10000);
   });
 
   it("should transfer 5,000,000 tokenB from account 0 to flashback contract", async function () {
@@ -348,22 +350,22 @@ describe("FlashBack Tests (different reward token)", function () {
     expect(await flashTokenContract.balanceOf(_recipient)).to.be.eq(_amount);
   });
 
-  it("account 1 should get quote, 1,000,000 FLASH for 365 days = 1,000,000.000007424 in rewards", async function () {
+  it("account 1 should get quote, 1,000,000 FLASH for 365 days = 1,000,000 in rewards", async function () {
     let _amount = ethers.utils.parseUnits("1000000", 18);
     let _duration = 31536000;
 
     let result = await flashBackContract.calculateReward(_amount, _duration);
 
-    expect(result).to.be.eq(ethers.utils.parseUnits("1000000.000007424", 18));
+    expect(result).to.be.eq(ethers.utils.parseUnits("1000000", 18));
   });
 
-  it("account 1 should get quote, 1,000,000 FLASH for 182.5 days = 500,000.000003712 in rewards", async function () {
+  it("account 1 should get quote, 1,000,000 FLASH for 182.5 days = 250,000 in rewards", async function () {
     let _amount = ethers.utils.parseUnits("1000000", 18);
     let _duration = 15768000;
 
     let result = await flashBackContract.calculateReward(_amount, _duration);
 
-    expect(result).to.be.eq(ethers.utils.parseUnits("500000.000003712", 18));
+    expect(result).to.be.eq(ethers.utils.parseUnits("250000", 18));
   });
 
   it("account 1 should get quote, 100,000,000 FLASH for 365 days = 5,000,000 in rewards (total available)", async function () {
@@ -378,11 +380,11 @@ describe("FlashBack Tests (different reward token)", function () {
   it("(1) account 1 should stake 1,000,000 Flash for 36.5 days", async function () {
     let _amount = ethers.utils.parseUnits("1000000", 18);
     let _duration = 86400 * 36.5;
-    let _minimumReward = ethers.utils.parseUnits("100000.0000007424", 18);
+    let _minimumReward = ethers.utils.parseUnits("100000", 18);
 
     // Approval and stake
     await flashTokenContract.connect(signers[1]).approve(flashBackContract.address, _amount);
-    let result = await flashBackContract.connect(signers[1]).stake(_amount, _duration, _minimumReward);
+    let result = await flashBackContract.connect(signers[1]).stake(_amount, _duration, 0);
 
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore
@@ -399,11 +401,11 @@ describe("FlashBack Tests (different reward token)", function () {
   it("(2) account 2 should stake 536,432 Flash for 365 days", async function () {
     let _amount = ethers.utils.parseUnits("536432", 18);
     let _duration = 86400 * 365;
-    let _minimumReward = ethers.utils.parseUnits("536432.000003982471168", 18);
+    let _minimumReward = ethers.utils.parseUnits("536432", 18);
 
     // Approval and stake
     await flashTokenContract.connect(signers[2]).approve(flashBackContract.address, _amount);
-    let result = await flashBackContract.connect(signers[2]).stake(_amount, _duration, _minimumReward);
+    let result = await flashBackContract.connect(signers[2]).stake(_amount, _duration, 0);
 
     let receipt: ContractReceipt = await result.wait();
     // @ts-ignore
@@ -420,7 +422,7 @@ describe("FlashBack Tests (different reward token)", function () {
   it("(3) account 2 should stake 12,500 Flash for 365 days", async function () {
     let _amount = ethers.utils.parseUnits("12500", 18);
     let _duration = 86400 * 365;
-    let _minimumReward = ethers.utils.parseUnits("12500.0000000928", 18);
+    let _minimumReward = ethers.utils.parseUnits("12500", 18);
 
     // Approval and stake
     await flashTokenContract.connect(signers[2]).approve(flashBackContract.address, _amount);
