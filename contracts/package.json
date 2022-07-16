@@ -1,0 +1,28 @@
+{
+  "name": "@blockzerolabs/flashv3-contracts",
+  "description": "Smart Contracts for Flash V3",
+  "version": "0.0.1",
+  "files": [
+    "**/*.sol",
+    "/build/contracts/*.json",
+    "!/mocks/**/*"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BlockzeroLabs/flashv3-contracts.git"
+  },
+  "keywords": [
+    "solidity",
+    "ethereum",
+    "smart",
+    "contracts",
+    "security",
+    "zeppelin"
+  ],
+  "author": "Umar <umar@blockzerolabs.io>",
+  "license": "BUSL-1.1",
+  "bugs": {
+    "url": "https://github.com/BlockzeroLabs/flashv3-contracts.git"
+  },
+  "homepage": "https://github.com/BlockzeroLabs/flashv3-contracts.git"
+}
