@@ -1,10 +1,9 @@
 import hre from "hardhat";
-import { FlashBack, FlashBackLM, FlashToken } from "../../typechain";
+import { FlashBackLM, FlashToken } from "../../typechain";
 import { Artifact } from "hardhat/types";
 import { expect } from "chai";
 import { ContractReceipt, ethers } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import * as fs from "fs";
 
 const { deployContract } = hre.waffle;
 
@@ -69,50 +68,6 @@ describe.only("Flashback Liquidity Mining", function () {
 
     expect(await tokenA.balanceOf(_recipient)).to.be.eq(_amount);
   });
-
-  function genRand(min: number, max: number, decimalPlaces: number) {
-    var rand = Math.random() * (max - min) + min;
-    var power = Math.pow(10, decimalPlaces);
-    return Math.floor(rand * power) / power;
-  }
-
-  /*
-  it("should generate CSV of random values", async function () {
-
-    const _totalEntries = 100;
-    const _minTokenAStaked = 0.001;
-    const _maxTokenAStaked = 1000;
-    const _minTimeStaked = 86400;
-    const _maxTimeStaked = 31536000;
-
-    let dataToFile = "";
-
-    for(let i = 0; i < _totalEntries; i++) {
-      let tokenAToStake = genRand(_minTokenAStaked, _maxTokenAStaked, 4);
-      let timeToStake = genRand(_minTimeStaked, _maxTimeStaked, 0);
-
-      // Convert to a BigNumber
-      const tokensAToStakeBN = ethers.utils.parseUnits((tokenAToStake + ""), 18);
-
-      let result = await flashBackContract.calculateReward(tokensAToStakeBN, timeToStake);
-
-      console.log({
-        "_amount": tokensAToStakeBN,
-        "_duration": timeToStake,
-        "reward": result
-      })
-      dataToFile = dataToFile + tokensAToStakeBN + "," + timeToStake + "," + result + "\n";
-
-      // Write to file sync
-      fs.writeFile('FlashBackLM.csv', dataToFile,  function(err) {
-        if (err) {
-          return console.error(err);
-        }
-        console.log("File created!");
-      });
-    }
-  });
-  */
 
   it("account 1 should get quote, 0.1 tokenA for 365 days = 3.477836150927867203 tokenB in rewards", async function () {
     let _amount = ethers.utils.parseUnits("0.1", 18);

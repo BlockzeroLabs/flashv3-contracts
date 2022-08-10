@@ -216,6 +216,7 @@ task("deploy:FlashBackLM")
   .addParam("rewardtokenaddress", "The reward token address")
   .addParam("minimumstakeduration", "The minimum amount of seconds the user will need to stake for")
   .addParam("maximumstakeduration", "The maximum number of seconds the user can stake for")
+  .addParam("maxapr", "Maximum APR")
   .setAction(async function (taskArguments: TaskArguments, { ethers }) {
     const [wallet1] = await ethers.getSigners();
 
@@ -233,6 +234,10 @@ task("deploy:FlashBackLM")
     );
     await flashBack.deployed();
     console.log("-> FlashBackLM Contract Deployed", flashBack.address);
+
+    console.log("Setting MAX APR to", taskArguments.maxapr);
+    await flashBack.connect(wallet1).setParameters(taskArguments.maxapr, 1, 1);
+    console.log("-> done");
   });
 
 task("deploy:UserIncentive")

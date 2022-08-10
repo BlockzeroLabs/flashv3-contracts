@@ -114,7 +114,7 @@ contract FlashBackLM is Ownable {
         require(_duration >= minimumStakeDuration, "DURATION < MINIMUM");
         require(_duration <= maximumStakeDuration, "DURATION > MAXIMUM");
 
-        uint256 reward = ((_duration**2) * (maxAPR * _amount)) / ((10000 * 994519296000000));
+        uint256 reward = ((_duration**2) * (maxAPR * _amount)) / ((10000 * (31536000 * maximumStakeDuration)));
         reward = ((flashInLP * 2) * reward) / lpTotalSupply;
 
         uint256 rewardsAvailable = getAvailableRewards();
