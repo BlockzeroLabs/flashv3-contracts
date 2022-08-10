@@ -4,6 +4,8 @@ import { TaskArguments } from "hardhat/types";
 import {
   FlashBack,
   FlashBack__factory,
+  FlashBackLM,
+  FlashBackLM__factory,
   FlashFTokenFactory,
   FlashFTokenFactory__factory,
   FlashNFT,
@@ -18,6 +20,15 @@ import {
   UserIncentive__factory,
 } from "../../typechain";
 import { BigNumber } from "ethers";
+
+task("deploy:TestTransaction")
+  .addParam("tokenaddress", "address of the token")
+  .setAction(async function (taskArguments: TaskArguments, { ethers }) {
+    const [wallet1] = await ethers.getSigners();
+    const tokenContract: FlashToken = <FlashToken>await ethers.getContractAt("FlashToken", taskArguments.tokenaddress);
+
+    await tokenContract.connect(wallet1).transfer(wallet1.address, 1);
+  });
 
 task("deploy:FlashToken").setAction(async function (taskArguments: TaskArguments, { ethers }) {
   const [wallet1] = await ethers.getSigners();
@@ -200,6 +211,35 @@ task("deploy:FlashBack")
     console.log("-> FlashBack Ratio set.");
   });
 
+task("deploy:FlashBackLM")
+  .addParam("stakingtokenaddress", "The token to be staked")
+  .addParam("rewardtokenaddress", "The reward token address")
+  .addParam("minimumstakeduration", "The minimum amount of seconds the user will need to stake for")
+  .addParam("maximumstakeduration", "The maximum number of seconds the user can stake for")
+  .addParam("maxapr", "Maximum APR")
+  .setAction(async function (taskArguments: TaskArguments, { ethers }) {
+    const [wallet1] = await ethers.getSigners();
+
+    console.log("Deploying FlashBack Contract");
+    const flashBackFactory: FlashBackLM__factory = await ethers.getContractFactory("FlashBackLM");
+    const flashBack: FlashBackLM = <FlashBackLM>(
+      await flashBackFactory
+        .connect(wallet1)
+        .deploy(
+          taskArguments.stakingtokenaddress,
+          taskArguments.rewardtokenaddress,
+          BigNumber.from(taskArguments.minimumstakeduration),
+          BigNumber.from(taskArguments.maximumstakeduration),
+        )
+    );
+    await flashBack.deployed();
+    console.log("-> FlashBackLM Contract Deployed", flashBack.address);
+
+    console.log("Setting MAX APR to", taskArguments.maxapr);
+    await flashBack.connect(wallet1).setParameters(taskArguments.maxapr, 1, 1);
+    console.log("-> done");
+  });
+
 task("deploy:UserIncentive")
   .addParam("strategyaddress", "The strategy address we want to incentivise")
   .setAction(async function (taskArguments: TaskArguments, { ethers }) {
@@ -208,7 +248,7 @@ task("deploy:UserIncentive")
     console.log("Deploying UserIncentive Contract");
     const uiFactory: UserIncentive__factory = await ethers.getContractFactory("UserIncentive");
     const userIncentiveContract: UserIncentive = <UserIncentive>(
-      await uiFactory.connect(wallet1).deploy(taskArguments.strategyaddress, 7257600)
+      await uiFactory.connect(wallet1).deploy(taskArguments.strategyaddress, 86400)
     );
     await userIncentiveContract.deployed();
     console.log("-> UserIncentive Contract Deployed", userIncentiveContract.address);
