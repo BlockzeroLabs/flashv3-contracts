@@ -15,6 +15,7 @@ import { NetworkUserConfig } from "hardhat/types";
 import "@nomiclabs/hardhat-etherscan";
 import "hardhat-gas-reporter";
 import "hardhat-interface-generator";
+import "hardhat-contract-sizer";
 
 dotenvConfig({ path: resolve(__dirname, "./.env") });
 
@@ -51,7 +52,6 @@ function getChainConfig(network: keyof typeof chainIds): NetworkUserConfig {
     url = "https://api.avax.network/ext/bc/C/rpc";
   } else {
     url = "https://" + network + ".infura.io/v3/" + infuraApiKey;
-    url = "https://eth-rinkeby.alchemyapi.io/v2/cSqVM_gxvwfoPiTN2hgH1s2l9ay7hg-M";
   }
 
   return {
@@ -62,6 +62,14 @@ function getChainConfig(network: keyof typeof chainIds): NetworkUserConfig {
     },
     chainId: chainIds[network],
     url,
+    /*
+    gas: "auto", // the gas limit
+    gasPrice: 5000000000, // 5 gwei
+    gasMultiplier: 1.5, // overestimate the gas by 50%
+    timeout: 120000 // 120 seconds before timing out
+
+     */
+    gasPrice: 25000000000, // 25 gwei
   };
 }
 
@@ -80,10 +88,17 @@ const config: HardhatUserConfig = {
       accounts: {
         mnemonic,
       },
+      // This is for all tests except AAVE Incentives
       forking: {
-        url: "https://eth-kovan.alchemyapi.io/v2/54bDiNOcguTQLWltv15reakFyi3uwiJj",
+        url: "https://kovan.infura.io/v3/" + infuraApiKey,
         blockNumber: 29392106,
       },
+
+      // This is for the AAVE Incentives test
+      //forking: {
+      //  url: "https://mainnet.infura.io/v3/" + infuraApiKey,
+      //  blockNumber: 14754600,
+      //},
       chainId: chainIds.hardhat,
     },
     goerli: getChainConfig("goerli"),
@@ -107,7 +122,7 @@ const config: HardhatUserConfig = {
     tests: "./test",
   },
   mocha: {
-    timeout: 40000
+    timeout: 40000,
   },
   solidity: {
     version: "0.8.9",

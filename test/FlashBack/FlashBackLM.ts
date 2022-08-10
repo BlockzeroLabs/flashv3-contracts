@@ -7,7 +7,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 
 const { deployContract } = hre.waffle;
 
-describe.only("Flashback Liquidity Mining", function () {
+describe("Flashback Liquidity Mining", function () {
   let tokenA: FlashToken;
   let flashBackContract: FlashBackLM;
   let tokenB: FlashToken;
