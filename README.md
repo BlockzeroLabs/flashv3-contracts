@@ -1,6 +1,15 @@
-# Solidity Template
+# Flashstake Contracts
 
-My favourite setup for writing Solidity smart contracts.
+This repo contains all the contracts related to the core Flashstake protocol.
+
+- The Flashstake Protocol
+- AAVEv2Strategy (USDC/DAI/etc)
+- Flashback
+- FlashbackLM (liquidity mining)
+- Flash Token
+- Flash NFT
+
+This repo was initialised using the Solidity template created by paulrberg: https://github.com/paulrberg/hardhat-template
 
 - [Hardhat](https://github.com/nomiclabs/hardhat): compile and run the smart contracts on a local development network
 - [TypeChain](https://github.com/ethereum-ts/TypeChain): generate TypeScript types for smart contracts
@@ -9,9 +18,6 @@ My favourite setup for writing Solidity smart contracts.
 - [Solhint](https://github.com/protofire/solhint): linter
 - [Solcover](https://github.com/sc-forks/solidity-coverage): code coverage
 - [Prettier Plugin Solidity](https://github.com/prettier-solidity/prettier-plugin-solidity): code formatter
-
-This is a GitHub template, which means you can reuse it as many times as you want. You can do that by clicking the "Use this
-template" button at the top of the page.
 
 ## Usage
 
@@ -94,9 +100,7 @@ $ yarn clean
 
 Deploy the contracts to Hardhat Network:
 
-```sh
-$ yarn deploy --greeting "Bonjour, le monde!"
-```
+Please see deploy.ts located within the tasks folder.
 
 ## Syntax Highlighting
 
