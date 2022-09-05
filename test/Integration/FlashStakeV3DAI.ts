@@ -99,9 +99,7 @@ describe("Flashstake Tests (DAI)", function () {
 
   it("should deploy rewards contract and inform strategy", async function () {
     const uiArtifact: Artifact = await hre.artifacts.readArtifact("UserIncentive");
-    userIncentiveContract = <UserIncentive>(
-      await deployContract(signers[0], uiArtifact, [strategyContract.address, 7257600])
-    );
+    userIncentiveContract = <UserIncentive>await deployContract(signers[0], uiArtifact, [strategyContract.address]);
 
     await strategyContract.setUserIncentiveAddress(userIncentiveContract.address);
   });
@@ -717,16 +715,6 @@ describe("Flashstake Tests (DAI)", function () {
     expect(await userIncentiveContract.rewardTokenBalance()).to.be.eq(BigNumber.from(101000).mul(multiplier));
   });
 
-  it("account 0 should fail when depositing new reward with error LOCKOUT IN FORCE", async function () {
-    const _tokenAddress = flashTokenContract.address;
-    const _amount = BigNumber.from(1000).mul(multiplier);
-    const _ratio = ethers.utils.parseUnits("0.5", 18);
-
-    await expect(
-      userIncentiveContract.connect(signers[0]).depositReward(_tokenAddress, _amount, _ratio),
-    ).to.be.revertedWith("LOCKOUT IN FORCE");
-  });
-
   it("should impersonate account 0xca4ad39f872e89ef23eabd5716363fc22513e147 and transfer 1,000 DAI to account 7", async function () {
     await hre.network.provider.request({
       method: "hardhat_impersonateAccount",
@@ -797,11 +785,6 @@ describe("Flashstake Tests (DAI)", function () {
     expect(await flashTokenContract.balanceOf(signers[7].address)).to.be.eq(ethers.utils.parseUnits("5", 18));
   });
 
-  it("account 0 should fail changing ratio to 0.25 with error RATIO CAN ONLY BE INCREASED", async function () {
-    const _ratio = ethers.utils.parseUnits("0.25", 18);
-    await expect(userIncentiveContract.setRewardRatio(_ratio)).to.be.revertedWith("RATIO CAN ONLY BE INCREASED");
-  });
-
   it("account 0 should increase reward ratio to 0.75", async function () {
     const _ratio = ethers.utils.parseUnits("0.75", 18);
     await userIncentiveContract.setRewardRatio(_ratio);
@@ -838,11 +821,6 @@ describe("Flashstake Tests (DAI)", function () {
     const newTs = new Date().getTime() / 1000 + 7257600; // 84 days
     await hre.network.provider.send("evm_increaseTime", [newTs]);
     await hre.network.provider.send("evm_mine");
-  });
-
-  it("account 0 should fail setting ratio when lockout period has ended with error LOCKOUT NOT IN FORCE", async function () {
-    const _ratio = ethers.utils.parseUnits("0.1", 18);
-    await expect(userIncentiveContract.setRewardRatio(_ratio)).to.be.revertedWith("LOCKOUT NOT IN FORCE");
   });
 
   it("account 0 should deposit 1,000 FLASH @ 1.5 ratio", async function () {
