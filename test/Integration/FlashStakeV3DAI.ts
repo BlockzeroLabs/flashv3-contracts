@@ -311,6 +311,14 @@ describe("Flashstake Tests (DAI)", function () {
     await expect(protocolContract.connect(signers[6]).unstake(1, true, 0)).to.be.revertedWith("NNO");
   });
 
+  it("increase block timestamp", async function () {
+    const stakeInfo = await protocolContract.getStakeInfo(1, true);
+
+    // Increase the timestamp of the next block
+    const newTs = stakeInfo["stakeStartTs"].add(stakeInfo["stakeDuration"]).toNumber();
+    await hre.network.provider.send("evm_setNextBlockTimestamp", [newTs]);
+  });
+
   it("should unstake with NFT as account 3 and receive initial principal", async function () {
     // We don't need to increase the EVM ts because we did that in the last test
 
