@@ -26,6 +26,7 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable, ReentrancyGuard {
     address constant aaveIncentivesAddress = 0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5;
 
     address public userIncentiveAddress;
+    bool public userIncentiveAddressLocked;
 
     constructor(
         address _lendingPoolAddress,
@@ -189,7 +190,12 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable, ReentrancyGuard {
     }
 
     function setUserIncentiveAddress(address _userIncentiveAddress) external onlyOwner {
-        require(userIncentiveAddress == address(0));
+        require(userIncentiveAddressLocked == false);
         userIncentiveAddress = _userIncentiveAddress;
+    }
+
+    function lockSetUserIncentiveAddress() external onlyOwner {
+        require(userIncentiveAddressLocked == false);
+        userIncentiveAddressLocked = true;
     }
 }

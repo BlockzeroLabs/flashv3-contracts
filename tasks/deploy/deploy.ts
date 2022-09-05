@@ -248,7 +248,7 @@ task("deploy:UserIncentive")
     console.log("Deploying UserIncentive Contract");
     const uiFactory: UserIncentive__factory = await ethers.getContractFactory("UserIncentive");
     const userIncentiveContract: UserIncentive = <UserIncentive>(
-      await uiFactory.connect(wallet1).deploy(taskArguments.strategyaddress, 86400)
+      await uiFactory.connect(wallet1).deploy(taskArguments.strategyaddress)
     );
     await userIncentiveContract.deployed();
     console.log("-> UserIncentive Contract Deployed", userIncentiveContract.address);
@@ -267,41 +267,41 @@ task("deploy:UserIncentive")
   =============================
 
 // 1. Deploy the Flash Token
-npx hardhat deploy:FlashToken --network kovan
+npx hardhat deploy:FlashToken --network fuji
 
 // 2. Transfer the Flash tokens if needed
-npx hardhat deploy:SendAllFlashTokens --network kovan --tokenaddress <flash token address> --address <address to send to>
+npx hardhat deploy:SendAllFlashTokens --network fuji --tokenaddress <flash token address> --address <address to send to>
 
 // 3. Deploy the Flash NFT
-npx hardhat deploy:FlashNFT --network kovan
+npx hardhat deploy:FlashNFT --network fuji
 
 // 4. Deploy the Flash FToken Factory
-npx hardhat deploy:FlashFTokenFactory --network kovan
+npx hardhat deploy:FlashFTokenFactory --network fuji
 
 // 5. Deploy the FlashProtocol
-npx hardhat deploy:FlashProtocol --network kovan --nftaddress xx --flashftokenfactory xx
+npx hardhat deploy:FlashProtocol --network fuji --nftaddress xx --flashftokenfactory xx
 
 // 6. Transfer the ownership of Flash NFT to Flash protocol
-npx hardhat deploy:TransferNFTOwnership --network kovan --nftaddress xx --flashprotocoladdress xx
+npx hardhat deploy:TransferNFTOwnership --network fuji --nftaddress xx --flashprotocoladdress xx
 
 // 7 Transfer the ownership of Flash FToken Factory to flash protocol
-npx hardhat deploy:TransferFactoryOwnership --network kovan --factoryaddress xx --flashprotocoladdress xx
+npx hardhat deploy:TransferFactoryOwnership --network fuji --factoryaddress xx --flashprotocoladdress xx
 
 // 8. Deploy flash strategy (AAVE v2)
-npx hardhat deploy:FlashAAVEStrategy --network kovan --pooladdress xxx --principaltokenaddress xxx --interestbearingtokenaddresses xx --flashprotocoladdress xx
+npx hardhat deploy:FlashAAVEStrategy --network fuji --pooladdress xxx --principaltokenaddress xxx --interestbearingtokenaddresses xx --flashprotocoladdress xx
 
 // 9. Register the new strategy against the Flashstake protocol
-npx hardhat deploy:RegisterStrategy --network kovan --flashprotocoladdress xxx --strategyaddress xxx --principaltokenaddress xxx --ftokenname fDAI --ftokensymbol fDAI
+npx hardhat deploy:RegisterStrategy --network fuji --flashprotocoladdress xxx --strategyaddress xxx --principaltokenaddress xxx --ftokenname fDAI --ftokensymbol fDAI
 
 // 10. Deploy the FlashBack contract
-npx hardhat deploy:FlashBack --network kovan --stakingtokenaddress xx --rewardtokenaddress xx --maxapr xx --minimumstakeduration xx --maximumstakeduration xx
+npx hardhat deploy:FlashBack --network fuji --stakingtokenaddress xx --rewardtokenaddress xx --maxapr xx --minimumstakeduration xx --maximumstakeduration xx
 
 // 11. Deploy the UserIncentive contract
-npx hardhat deploy:UserIncentive --network kovan --strategyaddress xx
+npx hardhat deploy:UserIncentive --network fuji --strategyaddress xx
 
 // Manually deposit rewards using functions (UserIncentive)
 
 // 12. Verify all the contracts
-npx hardhat verify --network kovan <contractAddress>
+npx hardhat verify --network fuji <contractAddress>
 
 */

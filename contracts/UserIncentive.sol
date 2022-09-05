@@ -9,9 +9,7 @@ import "./interfaces/IUserIncentive.sol";
 contract UserIncentive is IUserIncentive, Ownable {
     address public rewardTokenAddress;
     uint256 public rewardTokenBalance;
-    uint256 public rewardLockoutTs;
     uint256 public rewardRatio;
-    uint256 public immutable rewardLockoutConstant;
 
     address immutable strategyAddress;
     modifier onlyStrategy() {
@@ -19,9 +17,8 @@ contract UserIncentive is IUserIncentive, Ownable {
         _;
     }
 
-    constructor(address _strategyAddress, uint256 _rewardLockoutConstant) public {
+    constructor(address _strategyAddress) public {
         strategyAddress = _strategyAddress;
-        rewardLockoutConstant = _rewardLockoutConstant;
     }
 
     function depositReward(
@@ -29,36 +26,27 @@ contract UserIncentive is IUserIncentive, Ownable {
         uint256 _tokenAmount,
         uint256 _ratio
     ) external override onlyOwner {
-        // Withdraw any reward tokens currently in contract and deposit new tokens
+        // Transfer remaining rewards back to caller
         if (rewardTokenBalance > 0) {
-            // Only enforce this check if the rewardTokenBalance <= 0
-            require(block.timestamp > rewardLockoutTs, "LOCKOUT IN FORCE");
             IERC20C(rewardTokenAddress).transfer(msg.sender, rewardTokenBalance);
         }
+
+        // Transfer new rewards from caller into contract
         IERC20C(_rewardTokenAddress).transferFrom(msg.sender, address(this), _tokenAmount);
 
         // Set Ratio and update lockout
         rewardRatio = _ratio;
-        rewardLockoutTs = block.timestamp + rewardLockoutConstant;
         rewardTokenBalance = _tokenAmount;
         rewardTokenAddress = _rewardTokenAddress;
     }
 
     function addRewardTokens(uint256 _tokenAmount) external override onlyOwner {
         IERC20C(rewardTokenAddress).transferFrom(msg.sender, address(this), _tokenAmount);
-        rewardLockoutTs = block.timestamp + rewardLockoutConstant;
 
-        // Renew the lockout period
         rewardTokenBalance = rewardTokenBalance + _tokenAmount;
     }
 
     function setRewardRatio(uint256 _ratio) external override onlyOwner {
-        // Ensure this can only be called whilst lockout is active
-        require(rewardLockoutTs > block.timestamp, "LOCKOUT NOT IN FORCE");
-
-        // Ensure the ratio can only be increased
-        require(_ratio > rewardRatio, "RATIO CAN ONLY BE INCREASED");
-
         rewardRatio = _ratio;
     }
 
