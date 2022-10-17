@@ -28,6 +28,9 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable, ReentrancyGuard {
     address public userIncentiveAddress;
     bool public userIncentiveAddressLocked;
 
+    uint256 maxStakeDuration = 63072000; // Maximum stake duration for this strategy
+    bool public maxStakeDurationLocked = false; // Determines if the above variable is locked (stop future updates)
+
     constructor(
         address _lendingPoolAddress,
         address _principalTokenAddress,
@@ -181,21 +184,37 @@ contract FlashStrategyAAVEv2 is IFlashStrategy, Ownable, ReentrancyGuard {
         _;
     }
 
-    function getMaxStakeDuration() public pure override returns (uint256) {
-        return 63072000; // Static 730 days (2 years)
+    function getMaxStakeDuration() public view override returns (uint256) {
+        return maxStakeDuration;
     }
 
     function claimAAVEv2Rewards(address[] calldata _assets, uint256 _amount) external onlyOwner {
         IAaveIncentivesController(aaveIncentivesAddress).claimRewards(_assets, _amount, address(this));
     }
 
+    // @notice sets the new maximum stake duration
+    // @dev this can only be called by the strategy owner
+    function setMaxStakeDuration(uint256 _newMaxStakeDuration) external onlyOwner {
+        require(maxStakeDurationLocked == false);
+        maxStakeDuration = _newMaxStakeDuration;
+    }
+
+    // @notice permanently locks the max stake duration
+    // @dev this can only be called by the strategy owner
+    function lockMaxStakeDuration() external onlyOwner {
+        maxStakeDurationLocked = true;
+    }
+
+    // @notice set the new user incentive address
+    // @dev this can only be called by the strategy owner
     function setUserIncentiveAddress(address _userIncentiveAddress) external onlyOwner {
         require(userIncentiveAddressLocked == false);
         userIncentiveAddress = _userIncentiveAddress;
     }
 
+    // @notice permanently locks the user incentive address
+    // @dev this can only be called by the strategy owner
     function lockSetUserIncentiveAddress() external onlyOwner {
-        require(userIncentiveAddressLocked == false);
         userIncentiveAddressLocked = true;
     }
 }
